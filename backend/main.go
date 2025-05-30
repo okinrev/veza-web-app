@@ -41,8 +41,9 @@ func main() {
 
 	routes.RegisterTagRoutes(r)
 
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("../frontend")))
+	routes.RegisterSuggestionRoutes(r)
 
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("../frontend")))
 
 	log.Println("Serveur lancé sur :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))

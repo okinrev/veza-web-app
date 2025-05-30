@@ -1,3 +1,5 @@
+//file: backend/modules/chat_server/src/hub/room.rs
+
 use sqlx::{query, query_as, PgPool, FromRow};
 use serde::Deserialize;
 use std::sync::Arc;

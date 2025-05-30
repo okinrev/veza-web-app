@@ -1,3 +1,5 @@
+//file: backend/modules/chat_server/src/hub/dm.rs
+
 use sqlx::{query, query_as, PgPool, FromRow};
 use serde::Deserialize;
 use crate::hub::common::ChatHub;

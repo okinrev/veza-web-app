@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talas - Tableau de Bord Amélioré</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        /* Masque les éléments jusqu'à ce qu'Alpine.js soit initialisé pour éviter le "flash of unstyled content" */
+        [x-cloak] { display: none !important; }
+
+        /* Styles de base pour les boutons primaires avec des ombres et transitions */
+        .btn-primary {
+            @apply bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold transition-all duration-300 ease-in-out shadow-md hover:shadow-lg;
+        }
+
+        /* Styles pour les champs de formulaire avec des transitions au focus */
+        .form-input {
+            @apply w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 ease-in-out;
+        }
+
+        /* Styles pour les messages d'état (succès/erreur) */
+        .message {
+            @apply px-4 py-2 rounded-md font-medium text-sm text-center;
+        }
+        .message-success {
+            @apply bg-green-100 text-green-700 border border-green-200;
+        }
+        .message-error {
+            @apply bg-red-100 text-red-700 border border-red-200;
+        }
+
+        /* Styles pour les indicateurs de chargement */
+        .loader {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-6 bg-gray-100 font-sans text-gray-800 antialiased" x-data="mainApp()">
+    <header class="flex flex-col sm:flex-row items-center justify-between pb-6 border-b border-gray-200 mb-6">
+        <h1 class="text-4xl font-extrabold tracking-tight text-gray-900 mb-4 sm:mb-0">Bienvenue sur Talas !</h1>
+        <nav x-cloak x-show="isLoggedIn" class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <span class="text-gray-600">Connecté(e) en tant que <strong class="text-blue-700" x-text="username"></strong></span>
+            <button @click="logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 ease-in-out">Déconnexion</button>
+        </nav>
+    </header>
+
+    <section x-cloak x-show="!isLoggedIn" class="max-w-md mx-auto bg-white shadow-2xl rounded-lg p-8 mb-8 transform hover:scale-105 transition-transform duration-300 ease-in-out">
+        <h2 class="text-3xl font-bold text-center mb-6 text-gray-900">Accès à l'Application</h2>
+        <div class="space-y-6">
+            <div>
+                <h3 class="font-semibold text-xl mb-3 text-gray-800">Se Connecter</h3>
+                <form @submit.prevent="login" class="space-y-4">
+                    <input type="email" x-model="loginEmail" placeholder="Email" required class="form-input" autocomplete="username" />
+                    <input type="password" x-model="loginPassword" placeholder="Mot de passe" required class="form-input" autocomplete="current-password" />
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-md transition-colors duration-200 ease-in-out flex items-center justify-center" :disabled="isLoading">
+                        <span x-show="!isLoading">Connexion</span>
+                        <span x-show="isLoading" class="loader"></span>
+                    </button>
+                </form>
+            </div>
+            <div class="border-t border-gray-200 pt-6">
+                <h3 class="font-semibold text-xl mb-3 text-gray-800">S'inscrire</h3>
+                <form @submit.prevent="signup" class="space-y-4">
+                    <input type="text" x-model="signupUsername" placeholder="Nom d'utilisateur" required class="form-input" autocomplete="new-username" />
+                    <input type="email" x-model="signupEmail" placeholder="Email" required class="form-input" autocomplete="new-email" />
+                    <input type="password" x-model="signupPassword" placeholder="Mot de passe" required class="form-input" autocomplete="new-password" />
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-md transition-colors duration-200 ease-in-out flex items-center justify-center" :disabled="isLoading">
+                        <span x-show="!isLoading">Inscription</span>
+                        <span x-show="isLoading" class="loader"></span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        <div x-cloak x-show="message" :class="`mt-6 message ${messageType === 'success' ? 'message-success' : 'message-error'}`" x-text="message"></div>
+    </section>
+
+    <main x-cloak x-show="isLoggedIn" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center transform hover:scale-105 transition-transform duration-300 ease-in-out">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900">⚙️ Gestion du Compte</h2>
+            <p class="text-gray-600 mb-5">Mettez à jour votre profil, votre mot de passe, ou gérez votre avatar.</p>
+            <div class="flex flex-col space-y-3">
+                <a href="#" @click.prevent="openModal('profile')" class="btn-primary">Mon Profil</a>
+                <a href="#" @click.prevent="openModal('changePassword')" class="btn-primary">Changer Mot de Passe</a>
+            </div>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center transform hover:scale-105 transition-transform duration-300 ease-in-out">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900">📦 Mes Produits</h2>
+            <p class="text-gray-600 mb-5">Créez, modifiez ou supprimez vos produits et gérez leurs fichiers.</p>
+            <a href="#" @click.prevent="openModal('products')" class="btn-primary">Gérer les Produits</a>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center transform hover:scale-105 transition-transform duration-300 ease-in-out">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900">📚 Ressources Partagées</h2>
+            <p class="text-gray-600 mb-5">Explorez, partagez et téléchargez des ressources avec la communauté.</p>
+            <a href="#" @click.prevent="openModal('sharedRessources')" class="btn-primary">Accéder aux Ressources</a>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center transform hover:scale-105 transition-transform duration-300 ease-in-out">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900">🎵 Mes Pistes Audio</h2>
+            <p class="text-gray-600 mb-5">Uploadez, listez et écoutez vos créations audio.</p>
+            <a href="#" @click.prevent="openModal('tracks')" class="btn-primary">Gérer les Pistes</a>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center transform hover:scale-105 transition-transform duration-300 ease-in-out">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900">💬 Messagerie Privée</h2>
+            <p class="text-gray-600 mb-5">Discutez en privé avec d'autres utilisateurs.</p>
+            <a href="/users.html" class="btn-primary">Démarrer une Discussion</a>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center transform hover:scale-105 transition-transform duration-300 ease-in-out">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900">🗣️ Salons de Discussion</h2>
+            <p class="text-gray-600 mb-5">Rejoignez des discussions de groupe publiques.</p>
+            <a href="/room.html" class="btn-primary">Accéder aux Salons</a>
+        </div>
+    </main>
+
+    <div x-cloak x-show="activeModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-90"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-90"
+         class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+        <div @click.away="closeModal" class="bg-white rounded-lg shadow-xl p-8 w-full max-w-4xl max-h-[95vh] overflow-y-auto relative transform transition-all duration-300 ease-in-out">
+            <button @click="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl font-bold leading-none select-none transition-colors duration-200 ease-in-out">&times;</button>
+
+            <template x-if="activeModal === 'profile'">
+                <div>
+                    <h3 class="text-3xl font-bold mb-4 text-gray-900">Mon Profil</h3>
+                    <p class="text-gray-700">Afficher et modifier les informations de l'utilisateur connecté. Ces API sont utilisées pour la gestion de votre profil.</p>
+                    <pre class="bg-gray-100 p-4 rounded-md mt-6 overflow-auto text-sm text-gray-800 shadow-inner"><code>GET /me</code>
+<code>PUT /users/{id}</code>
+<code>DELETE /users/{id}</code>
+<code>GET /users/{id}/avatar</code></pre>
+                </div>
+            </template>
+
+            <template x-if="activeModal === 'changePassword'">
+                <div>
+                    <h3 class="text-3xl font-bold mb-4 text-gray-900">Changer mon Mot de Passe</h3>
+                    <p class="text-gray-700">Utilisez ce formulaire pour modifier le mot de passe de votre compte en toute sécurité.</p>
+                    <pre class="bg-gray-100 p-4 rounded-md mt-6 overflow-auto text-sm text-gray-800 shadow-inner"><code>PUT /users/password</code></pre>
+                </div>
+            </template>
+
+            <template x-if="activeModal === 'products'">
+                <div>
+                    <h3 class="text-3xl font-bold mb-4 text-gray-900">Gestion des Produits</h3>
+                    <p class="text-gray-700">Créez, listez, consultez les détails, modifiez ou supprimez vos produits. Vous pouvez également gérer les fichiers et la documentation associés à chaque produit.</p>
+                    <pre class="bg-gray-100 p-4 rounded-md mt-6 overflow-auto text-sm text-gray-800 shadow-inner"><code>GET /products</code>
+<code>POST /products</code>
+<code>GET /products/{id}</code>
+<code>PUT /products/{id}</code>
+<code>DELETE /products/{id}</code>
+<code>GET /products/{id}/files</code>
+<code>POST /products/{id}/files</code>
+<code>GET /files/{id} (pour le téléchargement)</code>
+<code>GET /products/{id}/docs</code>
+<code>GET /products/{id}/docs/{id}</code>
+<code>GET /docs/{id}</code></pre>
+                </div>
+            </template>
+
+            <template x-if="activeModal === 'sharedRessources'">
+                <div x-data="sharedRessourcesModule()" x-init="init()">
+                    <h3 class="text-3xl font-bold mb-6 text-gray-900">Ressources Partagées</h3>
+
+                    <section class="space-y-5 mb-10 p-6 bg-blue-50 rounded-lg border border-blue-200">
+                        <h2 class="text-2xl font-semibold text-blue-800">➕ Partager une ressource</h2>
+                        <form @submit.prevent="uploadResource" enctype="multipart/form-data" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <input type="text" x-model="uploadForm.title" placeholder="Titre de la ressource" required class="form-input col-span-2" />
+                            <textarea x-model="uploadForm.description" placeholder="Description (facultative)" class="form-input col-span-2"></textarea>
+                            <select x-model="uploadForm.type" required class="form-input">
+                                <option value="">-- Sélectionner un type --</option>
+                                <option value="sample">🎵 Sample</option>
+                                <option value="preset">🎛️ Preset</option>
+                                <option value="project">📁 Projet</option>
+                                <option value="mix">🎚️ Mix</option>
+                                <option value="stem">🎙️ Stem</option>
+                            </select>
+                            <input type="file" @change="handleFileUpload" required class="form-input file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200" />
+
+                            <div class="col-span-2">
+                                <label for="tagInputModal" class="block text-sm font-medium text-gray-700 mb-1">Tags (jusqu'à 5)</label>
+                                <div class="flex flex-wrap gap-2 my-2">
+                                    <template x-for="tag in selectedTags" :key="tag">
+                                        <span class="bg-blue-200 text-blue-800 text-sm px-3 py-1 rounded-full flex items-center gap-2 shadow-sm">
+                                            <span x-text="tag"></span>
+                                            <button @click="removeTag(tag)" class="ml-1 text-blue-600 hover:text-blue-800 font-bold leading-none">&times;</button>
+                                        </span>
+                                    </template>
+                                </div>
+                                <div class="relative">
+                                    <input type="text" id="tagInputModal" x-model="tagInput" @input="searchTags" placeholder="Ajouter des tags..." class="form-input" />
+                                    <ul x-show="tagSuggestions.length > 0 && tagInput.length > 0"
+                                        x-transition:enter="transition ease-out duration-100"
+                                        x-transition:enter-start="opacity-0 scale-95"
+                                        x-transition:enter-end="opacity-100 scale-100"
+                                        x-transition:leave="transition ease-in duration-75"
+                                        x-transition:leave-start="opacity-100 scale-100"
+                                        x-transition:leave-end="opacity-0 scale-95"
+                                        class="absolute z-10 w-full border border-gray-200 bg-white rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto text-sm">
+                                        <template x-for="tag in tagSuggestions" :key="tag">
+                                            <li @click="addTag(tag)" class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-gray-800" x-text="tag"></li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <label class="col-span-2 inline-flex items-center text-gray-700">
+                                <input type="checkbox" x-model="uploadForm.is_public" class="form-checkbox h-5 w-5 text-blue-600 rounded mr-2" checked>
+                                Ressource publique
+                            </label>
+                            <button type="submit" class="col-span-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded flex items-center justify-center font-bold transition-colors duration-200 ease-in-out" :disabled="isLoading">
+                                <span x-show="!isLoading">📤 Partager</span>
+                                <span x-show="isLoading" class="loader"></span>
+                            </button>
+                        </form>
+                        <div x-cloak x-show="message" :class="`mt-4 message ${messageType === 'success' ? 'message-success' : 'message-error'}`" x-text="message"></div>
+                    </section>
+
+                    <section class="mt-8 space-y-5 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                        <h2 class="text-2xl font-semibold text-gray-800">🔎 Recherche avancée</h2>
+                        <form @submit.prevent="searchRessources" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <input type="text" x-model="searchFilters.tag" placeholder="Tag" class="form-input" />
+                            <select x-model="searchFilters.type" class="form-input">
+                                <option value="">-- Tous les types --</option>
+                                <option value="sample">🎵 Sample</option>
+                                <option value="preset">🎛️ Preset</option>
+                                <option value="project">📁 Projet</option>
+                                <option value="mix">🎚️ Mix</option>
+                                <option value="stem">🎙️ Stem</option>
+                            </select>
+                            <input type="text" x-model="searchFilters.title" placeholder="Titre" class="form-input" />
+                            <input type="text" x-model="searchFilters.uploader" placeholder="Uploader (username)" class="form-input" />
+                            <button type="submit" class="col-span-2 sm:col-span-1 bg-gray-800 hover:bg-black text-white px-4 py-3 rounded flex items-center justify-center font-bold transition-colors duration-200 ease-in-out" :disabled="isLoading">
+                                <span x-show="!isLoading">🔍 Rechercher</span>
+                                <span x-show="isLoading" class="loader"></span>
+                            </button>
+                        </form>
+                    </section>
+
+                    <section class="mt-8 space-y-5 p-6 bg-white rounded-lg border border-gray-200">
+                        <h2 class="text-2xl font-semibold text-gray-800">📚 Résultats</h2>
+                        <div x-cloak x-show="isLoading" class="text-center text-gray-600 py-8">Chargement des ressources... <span class="loader"></span></div>
+                        <div id="ressourceList" class="space-y-4" x-show="!isLoading">
+                            <template x-if="ressources.length === 0">
+                                <p class="text-gray-500 text-center py-4">Aucune ressource trouvée selon les critères.</p>
+                            </template>
+                            <template x-for="ressource in ressources" :key="ressource.id">
+                                <div class="border border-gray-200 p-4 rounded-lg bg-gray-50 space-y-2 shadow-sm">
+                                    <div class="text-xl font-bold text-gray-900" x-text="ressource.title"></div>
+                                    <div class="text-sm text-gray-700">
+                                        👤 <strong x-text="ressource.uploader_username || 'Anonyme'"></strong> |
+                                        📁 <span x-text="ressource.type"></span> |
+                                        ⏱ <span x-text="new Date(ressource.uploaded_at).toLocaleString()"></span>
+                                    </div>
+                                    <div class="text-sm text-gray-600 italic">
+                                        <span x-text="ressource.filename"></span> |
+                                        ⬇️ <span x-text="ressource.download_count || 0"></span> téléchargement(s)
+                                    </div>
+                                    <div class="flex gap-2 mt-1 flex-wrap">
+                                        <template x-for="tag in ressource.tags">
+                                            <span class='bg-gray-200 rounded px-2 py-1 text-xs text-gray-700' x-text="`#${tag}`"></span>
+                                        </template>
+                                    </div>
+                                    <div class="flex gap-4 mt-3">
+                                        <a :href="`/shared_ressources/${encodeURIComponent(ressource.filename)}`" target="_blank" class="text-blue-600 hover:underline flex items-center">👁️ Visualiser</a>
+                                        <a :href="`/shared_ressources/${encodeURIComponent(ressource.filename)}?download=true`" download class="text-green-600 hover:underline flex items-center">⬇️ Télécharger</a>
+                                    </div>
+                                    <template x-if="isAudio(ressource.filename)">
+                                        <audio controls class="mt-2 w-full">
+                                            <source :src="`/shared_ressources/${encodeURIComponent(ressource.filename)}`" :type="`audio/${getFileExtension(ressource.filename)}`">
+                                            Votre navigateur ne supporte pas l'audio.
+                                        </audio>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
+                </div>
+            </template>
+
+            <template x-if="activeModal === 'tracks'">
+                <div x-data="tracksModule()" x-init="init()">
+                    <h3 class="text-3xl font-bold mb-6 text-gray-900">Mes Pistes Audio</h3>
+
+                    <form @submit.prevent="uploadTrack" enctype="multipart/form-data" class="space-y-4 p-6 bg-blue-50 rounded-lg border border-blue-200 mb-8">
+                        <h2 class="text-2xl font-semibold text-blue-800">📥 Uploader une Nouvelle Piste</h2>
+                        <input type="text" x-model="trackForm.title" placeholder="Titre de la piste" required class="form-input" />
+                        <input type="text" x-model="trackForm.artist" placeholder="Nom de l’artiste" required class="form-input" />
+                        <input type="text" x-model="trackForm.tags" placeholder="Tags séparés par des virgules (ex: rock, pop, instrumental)" class="form-input" />
+                        <input type="file" @change="handleTrackUpload" accept="audio/*" required class="form-input file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200" />
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded flex items-center justify-center font-bold transition-colors duration-200 ease-in-out" :disabled="isLoading">
+                            <span x-show="!isLoading">Envoyer la Piste</span>
+                            <span x-show="isLoading" class="loader"></span>
+                        </button>
+                    </form>
+                    <div x-cloak x-show="message" :class="`mt-4 message ${messageType === 'success' ? 'message-success' : 'message-error'}`" x-text="message"></div>
+
+                    <section class="mt-8 space-y-5 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                        <h2 class="text-2xl font-semibold text-gray-800">📂 Pistes disponibles</h2>
+                        <div x-cloak x-show="isLoading" class="text-center text-gray-600 py-8">Chargement des pistes... <span class="loader"></span></div>
+                        <div class="space-y-4 mt-2" x-show="!isLoading">
+                            <template x-if="tracks.length === 0">
+                                <p class="text-gray-500 text-center py-4">Aucune piste trouvée.</p>
+                            </template>
+                            <template x-for="track in tracks" :key="track.id">
+                                <div class="border border-gray-200 p-4 rounded-lg bg-white shadow-sm">
+                                    <div class="font-semibold text-lg text-gray-900" x-text="`${track.title} — ${track.artist}`"></div>
+                                    <div class="text-sm text-gray-600 mt-1">Tags: <span x-text="track.tags || 'Aucun'"></span></div>
+                                    <audio controls class="w-full mt-3" x-show="track.streamUrl" :src="track.streamUrl">
+                                        Votre navigateur ne supporte pas l'audio HTML5.
+                                    </audio>
+                                    <button @click="generateStreamUrl(track.filename, track.id)" x-show="!track.streamUrl" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 mt-3 rounded flex items-center font-semibold transition-colors duration-200 ease-in-out" :disabled="track.isGeneratingStream">
+                                        <span x-show="!track.isGeneratingStream">🎧 Lire via lien sécurisé</span>
+                                        <span x-show="track.isGeneratingStream" class="loader"></span>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
+                </div>
+            </template>
+
+            <div x-cloak x-show="modalMessage" :class="`mt-6 message ${modalMessageType === 'success' ? 'message-success' : 'message-error'}`" x-text="modalMessage"></div>
+
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+
+            // --- Utilitaire pour la gestion des tokens ---
+            const Auth = {
+                async getValidToken() {
+                    const token = localStorage.getItem('access_token');
+                    if (!token) {
+                        console.warn("Token d’authentification manquant.");
+                        return null;
+                    }
+                    // Optionnel: Vérifier la validité du token avec une requête /me si nécessaire
+                    // Pour cet exemple, nous assumons qu'un token présent est valide
+                    return token;
+                },
+                setToken(token) {
+                    localStorage.setItem('access_token', token);
+                },
+                removeToken() {
+                    localStorage.removeItem('access_token');
+                }
+            };
+
+            // --- Alpine Data pour l'application principale (Login, Signup, Navigation) ---
+            Alpine.data('mainApp', () => ({
+                isLoggedIn: false,
+                username: '',
+                loginEmail: '',
+                loginPassword: '',
+                signupUsername: '',
+                signupEmail: '',
+                signupPassword: '',
+                message: '',
+                messageType: 'info', // 'success' or 'error'
+                isLoading: false, // Indicateur de chargement pour les formulaires de connexion/inscription
+
+                activeModal: null, // Gère la modale actuellement ouverte ('profile', 'products', etc.)
+                modalMessage: '',
+                modalMessageType: 'info',
+
+                init() {
+                    this.checkLoginStatus();
+                },
+
+                // Vérifie l'état de connexion de l'utilisateur au chargement
+                async checkLoginStatus() {
+                    const token = await Auth.getValidToken();
+                    if (token) {
+                        try {
+                            const res = await fetch('/me', {
+                                headers: { 'Authorization': 'Bearer ' + token }
+                            });
+                            if (res.ok) {
+                                const user = await res.json();
+                                this.username = user.username;
+                                this.isLoggedIn = true;
+                            } else {
+                                Auth.removeToken();
+                                this.isLoggedIn = false;
+                                console.error("Token invalide ou expiré, déconnexion forcée.");
+                            }
+                        } catch (err) {
+                            console.error("Erreur lors de la vérification du statut de connexion:", err);
+                            Auth.removeToken();
+                            this.isLoggedIn = false;
+                        }
+                    }
+                },
+
+                // Gère la connexion de l'utilisateur
+                async login() {
+                    this.isLoading = true;
+                    this.message = ''; // Réinitialise les messages
+                    try {
+                        const res = await fetch('/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: this.loginEmail, password: this.loginPassword })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            Auth.setToken(data.access_token);
+                            this.username = data.username;
+                            this.isLoggedIn = true;
+                            this.message = 'Connexion réussie ! Bienvenue.';
+                            this.messageType = 'success';
+                            this.loginEmail = '';
+                            this.loginPassword = '';
+                        } else {
+                            this.message = 'Erreur de connexion: ' + (data.message || 'Identifiants invalides.');
+                            this.messageType = 'error';
+                        }
+                    } catch (err) {
+                        this.message = 'Erreur réseau lors de la connexion. Veuillez vérifier votre connexion.';
+                        this.messageType = 'error';
+                        console.error("Erreur login:", err);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                // Gère l'inscription de l'utilisateur
+                async signup() {
+                    this.isLoading = true;
+                    this.message = ''; // Réinitialise les messages
+                    try {
+                        const res = await fetch('/signup', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: this.signupUsername, email: this.signupEmail, password: this.signupPassword })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            this.message = 'Inscription réussie ! Vous pouvez maintenant vous connecter.';
+                            this.messageType = 'success';
+                            this.signupUsername = '';
+                            this.signupEmail = '';
+                            this.signupPassword = '';
+                        } else {
+                            this.message = 'Erreur d\'inscription: ' + (data.message || 'Le nom d\'utilisateur ou l\'email pourrait déjà être utilisé.');
+                            this.messageType = 'error';
+                        }
+                    } catch (err) {
+                        this.message = 'Erreur réseau lors de l\'inscription. Veuillez réessayer plus tard.';
+                        this.messageType = 'error';
+                        console.error("Erreur signup:", err);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                // Gère la déconnexion
+                logout() {
+                    Auth.removeToken();
+                    this.isLoggedIn = false;
+                    this.username = '';
+                    this.activeModal = null; // Ferme toutes les modales
+                    this.message = 'Déconnexion réussie.';
+                    this.messageType = 'success';
+                },
+
+                // Ouvre une modale spécifique
+                openModal(feature) {
+                    this.activeModal = feature;
+                    this.modalMessage = ''; // Réinitialise le message de la modale
+                    this.modalMessageType = 'info';
+                },
+
+                // Ferme la modale actuellement ouverte
+                closeModal() {
+                    this.activeModal = null;
+                    this.modalMessage = '';
+                }
+            }));
+
+            // --- Alpine Data pour le module des Ressources Partagées ---
+            Alpine.data('sharedRessourcesModule', () => ({
+                uploadForm: {
+                    title: '',
+                    description: '',
+                    type: '',
+                    is_public: true,
+                    file: null
+                },
+                tagInput: '',
+                selectedTags: [],
+                tagSuggestions: [],
+                ressources: [],
+                searchFilters: {
+                    tag: '',
+                    type: '',
+                    title: '',
+                    uploader: ''
+                },
+                message: '', // Message spécifique au module
+                messageType: 'info',
+                isLoading: false, // Indicateur de chargement pour les opérations du module
+
+                init() {
+                    // Initialise le chargement des ressources et des tags recommandés
+                    this.loadRessources();
+                    this.loadRecommendedTags();
+                },
+
+                // Gère la sélection de fichier pour l'upload
+                handleFileUpload(event) {
+                    this.uploadForm.file = event.target.files[0];
+                },
+
+                // Upload une nouvelle ressource
+                async uploadResource() {
+                    this.isLoading = true;
+                    this.message = '';
+                    const token = await Auth.getValidToken();
+                    if (!token) {
+                        this.message = "❌ Authentification requise pour partager une ressource.";
+                        this.messageType = 'error';
+                        this.isLoading = false;
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('title', this.uploadForm.title);
+                    formData.append('description', this.uploadForm.description);
+                    formData.append('type', this.uploadForm.type);
+                    formData.append('file', this.uploadForm.file);
+                    formData.append('is_public', this.uploadForm.is_public);
+                    formData.append('tags', this.selectedTags.join(','));
+
+                    try {
+                        const res = await fetch('/shared_ressources', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + token },
+                            body: formData
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.message = "✅ Ressource partagée avec succès : " + data.title;
+                            this.messageType = 'success';
+                            // Réinitialise le formulaire
+                            this.uploadForm.title = '';
+                            this.uploadForm.description = '';
+                            this.uploadForm.type = '';
+                            this.uploadForm.is_public = true;
+                            this.uploadForm.file = null;
+                            this.selectedTags = [];
+                            this.tagInput = '';
+                            // Recharge les ressources après l'upload
+                            this.loadRessources();
+                        } else {
+                            const errorText = await res.text();
+                            this.message = `❌ Erreur lors du partage : ${res.status} — ${errorText}`;
+                            this.messageType = 'error';
+                        }
+                    } catch (err) {
+                        this.message = "❌ Erreur réseau lors de l'upload de ressource.";
+                        this.messageType = 'error';
+                        console.error("Erreur upload ressource:", err);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                // Recherche de tags pour la suggestion
+                async searchTags() {
+                    const q = this.tagInput.trim();
+                    if (q === "") {
+                        this.tagSuggestions = [];
+                        return;
+                    }
+                    try {
+                        const res = await fetch(`/tags/search?q=${encodeURIComponent(q)}`);
+                        const tags = await res.json();
+                        this.tagSuggestions = tags.filter(tag => !this.selectedTags.includes(tag));
+                    } catch (e) {
+                        console.error("Erreur lors de la recherche de tags:", e);
+                        this.tagSuggestions = [];
+                    }
+                },
+
+                // Ajoute un tag à la liste des tags sélectionnés
+                addTag(tag) {
+                    if (this.selectedTags.length < 5 && !this.selectedTags.includes(tag)) {
+                        this.selectedTags.push(tag);
+                    }
+                    this.tagInput = '';
+                    this.tagSuggestions = [];
+                },
+
+                // Supprime un tag de la liste des tags sélectionnés
+                removeTag(tag) {
+                    this.selectedTags = this.selectedTags.filter(t => t !== tag);
+                },
+
+                // Charge les tags recommandés (peut être utilisé pour peupler une liste prédéfinie de tags)
+                async loadRecommendedTags() {
+                    try {
+                        const res = await fetch('/tags');
+                        // const tags = await res.json();
+                        // Pas d'utilisation directe des tags pour l'instant dans ce template
+                    } catch (e) {
+                        console.error("Erreur chargement tags recommandés:", e);
+                    }
+                },
+
+                // Charge les ressources partagées en appliquant des filtres
+                async loadRessources(filters = this.searchFilters) {
+                    this.isLoading = true;
+                    this.message = '';
+                    const token = await Auth.getValidToken();
+                    if (!token) {
+                        this.message = "❌ Authentification requise pour visualiser les ressources.";
+                        this.messageType = 'error';
+                        this.ressources = [];
+                        this.isLoading = false;
+                        return;
+                    }
+
+                    try {
+                        const params = new URLSearchParams(filters);
+                        const res = await fetch(`/shared_ressources/search?${params}`, {
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+
+                        if (!res.ok) {
+                            this.message = `❌ Erreur chargement des ressources (${res.status}).`;
+                            this.messageType = 'error';
+                            this.ressources = [];
+                            return;
+                        }
+                        this.ressources = await res.json();
+                    } catch (err) {
+                        this.message = "❌ Erreur JS lors du chargement des ressources.";
+                        this.messageType = 'error';
+                        this.ressources = [];
+                        console.error("Erreur loadRessources:", err);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                // Lance la recherche de ressources
+                searchRessources() {
+                    this.loadRessources(this.searchFilters);
+                },
+
+                // Vérifie si un fichier est un audio
+                isAudio(filename) {
+                    const ext = filename.split('.').pop().toLowerCase();
+                    return ["mp3", "wav", "ogg", "flac"].includes(ext);
+                },
+
+                // Récupère l'extension d'un fichier
+                getFileExtension(filename) {
+                    return filename.split('.').pop().toLowerCase();
+                }
+            }));
+
+            // --- Alpine Data pour le module des Pistes Audio ---
+            Alpine.data('tracksModule', () => ({
+                trackForm: {
+                    title: '',
+                    artist: '',
+                    tags: '',
+                    audio: null
+                },
+                tracks: [],
+                message: '', // Message spécifique au module
+                messageType: 'info',
+                isLoading: false, // Indicateur de chargement pour les opérations du module
+
+                init() {
+                    this.loadTracks();
+                },
+
+                // Gère la sélection de fichier audio
+                handleTrackUpload(event) {
+                    this.trackForm.audio = event.target.files[0];
+                },
+
+                // Upload une nouvelle piste audio
+                async uploadTrack() {
+                    this.isLoading = true;
+                    this.message = '';
+                    const token = await Auth.getValidToken();
+                    if (!token) {
+                        this.message = "❌ Authentification requise pour uploader une piste.";
+                        this.messageType = 'error';
+                        this.isLoading = false;
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('title', this.trackForm.title);
+                    formData.append('artist', this.trackForm.artist);
+                    formData.append('tags', this.trackForm.tags);
+                    formData.append('audio', this.trackForm.audio);
+
+                    try {
+                        const res = await fetch('/tracks', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + token },
+                            body: formData
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.message = "✅ Piste ajoutée avec succès : " + data.title;
+                            this.messageType = 'success';
+                            // Réinitialise le formulaire
+                            this.trackForm.title = '';
+                            this.trackForm.artist = '';
+                            this.trackForm.tags = '';
+                            this.trackForm.audio = null;
+                            // Recharge les pistes après l'upload
+                            this.loadTracks();
+                        } else {
+                            const errorText = await res.text();
+                            this.message = `❌ Erreur lors de l'upload : ${res.status} — ${errorText}`;
+                            this.messageType = 'error';
+                        }
+                    } catch (err) {
+                        this.message = "❌ Erreur réseau lors de l'upload de piste.";
+                        this.messageType = 'error';
+                        console.error("Erreur upload piste:", err);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                // Charge les pistes audio de l'utilisateur
+                async loadTracks() {
+                    this.isLoading = true;
+                    this.message = '';
+                    const token = await Auth.getValidToken();
+                    if (!token) {
+                        this.message = "❌ Authentification requise pour charger les pistes.";
+                        this.messageType = 'error';
+                        this.tracks = [];
+                        this.isLoading = false;
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch('/tracks', {
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+
+                        if (!res.ok) {
+                            this.message = `❌ Impossible de charger les pistes (${res.status}).`;
+                            this.messageType = 'error';
+                            this.tracks = [];
+                            return;
+                        }
+                        const tracksData = await res.json();
+                        // Ajoute une propriété `streamUrl` et `isGeneratingStream` pour gérer l'état de lecture
+                        this.tracks = tracksData.map(t => ({ ...t, streamUrl: null, isGeneratingStream: false }));
+                    } catch (err) {
+                        this.message = "❌ Erreur lors du chargement des pistes.";
+                        this.messageType = 'error';
+                        this.tracks = [];
+                        console.error("Erreur loadTracks:", err);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                // Génère un lien de streaming sécurisé pour une piste audio
+                async generateStreamUrl(filename, trackId) {
+                    const trackIndex = this.tracks.findIndex(t => t.id === trackId);
+                    if (trackIndex !== -1) {
+                        this.tracks[trackIndex].isGeneratingStream = true; // Active l'indicateur de chargement pour la piste
+                    }
+
+                    this.message = '';
+                    const token = await Auth.getValidToken();
+                    if (!token) {
+                        this.message = "❌ Authentification requise pour générer le lien de streaming.";
+                        this.messageType = 'error';
+                        if (trackIndex !== -1) this.tracks[trackIndex].isGeneratingStream = false;
+                        return;
+                    }
+
+                    try {
+                        const url = `/generate-stream-url?filename=${encodeURIComponent(filename)}`;
+                        const res = await fetch(url, {
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+
+                        if (!res.ok) {
+                            this.message = `❌ Erreur lors de la génération du lien signé (${res.status}).`;
+                            this.messageType = 'error';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.url) {
+                            this.message = "❌ Lien de streaming manquant dans la réponse.";
+                            this.messageType = 'error';
+                            return;
+                        }
+                        // Met à jour la piste spécifique avec l'URL de streaming générée
+                        if (trackIndex !== -1) {
+                            this.tracks[trackIndex].streamUrl = data.url;
+                        }
+                    } catch (err) {
+                        this.message = "❌ Erreur lors de la lecture audio.";
+                        this.messageType = 'error';
+                        console.error("Erreur generateStreamUrl:", err);
+                    } finally {
+                        if (trackIndex !== -1) {
+                            // Utilise `$nextTick` pour s'assurer que Alpine a mis à jour le DOM avant de désactiver le spinner
+                            Alpine.nextTick(() => {
+                                this.tracks[trackIndex].isGeneratingStream = false;
+                            });
+                        }
+                    }
+                }
+            }));
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Talas - Tableau de Bord</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="p-6 bg-gray-100 font-sans text-gray-800" x-data="mainApp()">
+    <header class="flex items-center justify-between pb-6 border-b border-gray-200 mb-6">
+        <h1 class="text-4xl font-extrabold tracking-tight text-gray-900">Bienvenue sur Talas !</h1>
+        <nav x-cloak x-show="isLoggedIn" class="flex items-center space-x-4">
+            <span class="text-gray-600">Connecté(e) en tant que <strong x-text="username"></strong></span>
+            <button @click="logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">Déconnexion</button>
+        </nav>
+    </header>
+
+    <section x-cloak x-show="!isLoggedIn" class="max-w-md mx-auto bg-white shadow-xl rounded-lg p-8 mb-8">
+        <h2 class="text-2xl font-bold text-center mb-6">Accès à l'Application</h2>
+        <div class="space-y-4">
+            <div>
+                <h3 class="font-semibold text-lg mb-2">Se Connecter</h3>
+                <form @submit.prevent="login" class="space-y-3">
+                    <input type="email" x-model="loginEmail" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                    <input type="password" x-model="loginPassword" placeholder="Mot de passe" required class="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-md transition-colors">Connexion</button>
+                </form>
+            </div>
+            <div class="border-t border-gray-200 pt-4">
+                <h3 class="font-semibold text-lg mb-2">S'inscrire</h3>
+                <form @submit.prevent="signup" class="space-y-3">
+                    <input type="text" x-model="signupUsername" placeholder="Nom d'utilisateur" required class="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                    <input type="email" x-model="signupEmail" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                    <input type="password" x-model="signupPassword" placeholder="Mot de passe" required class="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-500" />
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-md transition-colors">Inscription</button>
+                </form>
+            </div>
+        </div>
+        <div x-cloak x-show="message" :class="messageType === 'success' ? 'text-green-600' : 'text-red-600'" class="mt-4 text-center" x-text="message"></div>
+    </section>
+
+    <main x-cloak x-show="isLoggedIn" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center">
+            <h2 class="text-xl font-bold mb-4">⚙️ Gestion du Compte</h2>
+            <p class="text-gray-600 mb-4">Mettez à jour votre profil, votre mot de passe, ou gérez votre avatar.</p>
+            <a href="#" @click.prevent="openModal('profile')" class="btn-primary">Mon Profil</a>
+            <a href="#" @click.prevent="openModal('changePassword')" class="btn-primary mt-2">Changer Mot de Passe</a>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center">
+            <h2 class="text-xl font-bold mb-4">📦 Mes Produits</h2>
+            <p class="text-gray-600 mb-4">Créez, modifiez ou supprimez vos produits et gérez leurs fichiers.</p>
+            <a href="#" @click.prevent="openModal('products')" class="btn-primary">Gérer les Produits</a>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center">
+            <h2 class="text-xl font-bold mb-4">📚 Ressources Partagées</h2>
+            <p class="text-gray-600 mb-4">Explorez, partagez et téléchargez des ressources avec la communauté.</p>
+            <a href="#" @click.prevent="openModal('sharedRessources')" class="btn-primary">Accéder aux Ressources</a>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center">
+            <h2 class="text-xl font-bold mb-4">🎵 Mes Pistes Audio</h2>
+            <p class="text-gray-600 mb-4">Uploadez, listez et écoutez vos créations audio.</p>
+            <a href="#" @click.prevent="openModal('tracks')" class="btn-primary">Gérer les Pistes</a>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center">
+            <h2 class="text-xl font-bold mb-4">💬 Messagerie Privée</h2>
+            <p class="text-gray-600 mb-4">Discutez en privé avec d'autres utilisateurs.</p>
+            <a href="/users.html" class="btn-primary">Démarrer une Discussion</a>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 flex flex-col items-center justify-center text-center">
+            <h2 class="text-xl font-bold mb-4">🗣️ Salons de Discussion</h2>
+            <p class="text-gray-600 mb-4">Rejoignez des discussions de groupe publiques.</p>
+            <a href="/room.html" class="btn-primary">Accéder aux Salons</a>
+        </div>
+    </main>
+
+    <div x-cloak x-show="activeModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div @click.away="closeModal" class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
+            <button @click="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+
+            <template x-if="activeModal === 'profile'">
+                <div>
+                    <h3 class="text-2xl font-bold mb-4">Mon Profil</h3>
+                    <p>Afficher et modifier les informations de l'utilisateur connecté.</p>
+                    <pre class="bg-gray-100 p-3 rounded mt-4 overflow-auto text-sm"><code>GET /me</code>
+<code>PUT /users/{id}</code>
+<code>DELETE /users/{id}</code>
+<code>GET /users/{id}/avatar</code></pre>
+                </div>
+            </template>
+
+            <template x-if="activeModal === 'changePassword'">
+                <div>
+                    <h3 class="text-2xl font-bold mb-4">Changer mon Mot de Passe</h3>
+                    <p>Formulaire pour modifier le mot de passe de l'utilisateur.</p>
+                    <pre class="bg-gray-100 p-3 rounded mt-4 overflow-auto text-sm"><code>PUT /users/password</code></pre>
+                </div>
+            </template>
+
+            <template x-if="activeModal === 'products'">
+                <div>
+                    <h3 class="text-2xl font-bold mb-4">Gestion des Produits</h3>
+                    <p>Créer, lister, voir les détails, modifier ou supprimer des produits.</p>
+                    <pre class="bg-gray-100 p-3 rounded mt-4 overflow-auto text-sm"><code>GET /products</code>
+<code>POST /products</code>
+<code>GET /products/{id}</code>
+<code>PUT /products/{id}</code>
+<code>DELETE /products/{id}</code>
+<code>GET /products/{id}/files</code>
+<code>POST /products/{id}/files</code>
+<code>GET /files/{id} (pour le téléchargement)</code>
+<code>GET /products/{id}/docs</code>
+<code>GET /products/{id}/docs/{id}</code>
+<code>GET /docs/{id}</code></pre>
+                </div>
+            </template>
+
+            <template x-if="activeModal === 'sharedRessources'">
+                <div>
+                    <h3 class="text-2xl font-bold mb-4">Ressources Partagées</h3>
+                    <div x-data="sharedRessourcesModule()" x-init="init()">
+                        <section class="space-y-4">
+                            <h2 class="text-xl font-semibold">➕ Partager une ressource</h2>
+                            <form @submit.prevent="uploadResource" enctype="multipart/form-data" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <input type="text" x-model="uploadForm.title" placeholder="Titre de la ressource" required class="border p-2 rounded col-span-2" />
+                                <textarea x-model="uploadForm.description" placeholder="Description (facultative)" class="border p-2 rounded col-span-2"></textarea>
+                                <select x-model="uploadForm.type" required class="border p-2 rounded">
+                                    <option value="">-- Sélectionner un type --</option>
+                                    <option value="sample">🎵 Sample</option>
+                                    <option value="preset">🎛️ Preset</option>
+                                    <option value="project">📁 Projet</option>
+                                    <option value="mix">🎚️ Mix</option>
+                                    <option value="stem">🎙️ Stem</option>
+                                </select>
+                                <input type="file" @change="handleFileUpload" required class="border p-2 rounded" />
+                                <div class="col-span-2">
+                                    <label for="tagInputModal" class="block text-sm font-medium">Tags (jusqu'à 5)</label>
+                                    <div class="flex flex-wrap gap-2 my-2">
+                                        <template x-for="tag in selectedTags" :key="tag">
+                                            <span class="bg-gray-200 text-sm px-2 py-1 rounded-full flex items-center gap-1">
+                                                <span x-text="tag"></span>
+                                                <button @click="removeTag(tag)" class="ml-1 text-red-600">&times;</button>
+                                            </span>
+                                        </template>
+                                    </div>
+                                    <input type="text" id="tagInputModal" x-model="tagInput" @input="searchTags" placeholder="Commencez à taper..." class="border p-2 rounded w-full" />
+                                    <ul x-show="tagSuggestions.length > 0 && tagInput.length > 0" class="border bg-white rounded shadow mt-1 absolute z-10 max-h-48 overflow-y-auto text-sm w-full">
+                                        <template x-for="tag in tagSuggestions" :key="tag">
+                                            <li @click="addTag(tag)" class="px-3 py-1 hover:bg-gray-200 cursor-pointer" x-text="tag"></li>
+                                        </template>
+                                    </ul>
+                                </div>
+                                <label class="col-span-2 inline-flex items-center">
+                                    <input type="checkbox" x-model="uploadForm.is_public" class="form-checkbox mr-2" checked>
+                                    Ressource publique
+                                </label>
+                                <button type="submit" class="col-span-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">📤 Partager</button>
+                            </form>
+                        </section>
+
+                        <section class="mt-8 space-y-4">
+                            <h2 class="text-xl font-semibold">🔎 Recherche avancée</h2>
+                            <form @submit.prevent="searchRessources" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <input type="text" x-model="searchFilters.tag" placeholder="Tag" class="border p-2 rounded" />
+                                <select x-model="searchFilters.type" class="border p-2 rounded">
+                                    <option value="">-- Tous les types --</option>
+                                    <option value="sample">🎵 Sample</option>
+                                    <option value="preset">🎛️ Preset</option>
+                                    <option value="project">📁 Projet</option>
+                                    <option value="mix">🎚️ Mix</option>
+                                    <option value="stem">🎙️ Stem</option>
+                                </select>
+                                <input type="text" x-model="searchFilters.title" placeholder="Titre" class="border p-2 rounded" />
+                                <input type="text" x-model="searchFilters.uploader" placeholder="Uploader (username)" class="border p-2 rounded" />
+                                <button type="submit" class="col-span-2 sm:col-span-1 bg-gray-800 hover:bg-black text-white px-4 py-2 rounded">🔍 Rechercher</button>
+                            </form>
+                        </section>
+
+                        <section class="mt-8 space-y-4">
+                            <h2 class="text-xl font-semibold">📚 Résultats</h2>
+                            <div id="ressourceList" class="space-y-4">
+                                <template x-if="ressources.length === 0">
+                                    <p class="text-gray-500 text-center">Aucune ressource trouvée selon les critères.</p>
+                                </template>
+                                <template x-for="ressource in ressources" :key="ressource.id">
+                                    <div class="border p-4 rounded bg-gray-50 space-y-1">
+                                        <div class="text-xl font-bold" x-text="ressource.title"></div>
+                                        <div class="text-sm text-gray-700">
+                                            👤 <strong x-text="ressource.uploader_username || 'Anonyme'"></strong> |
+                                            📁 <span x-text="ressource.type"></span> |
+                                            ⏱ <span x-text="new Date(ressource.uploaded_at).toLocaleString()"></span>
+                                        </div>
+                                        <div class="text-sm text-gray-600 italic">
+                                            <span x-text="ressource.filename"></span> |
+                                            ⬇️ <span x-text="ressource.download_count || 0"></span> téléchargement(s)
+                                        </div>
+                                        <div class="flex gap-2 mt-1 flex-wrap">
+                                            <template x-for="tag in ressource.tags">
+                                                <span class='bg-gray-200 rounded px-2 py-1 text-xs' x-text="`#${tag}`"></span>
+                                            </template>
+                                        </div>
+                                        <div class="flex gap-4 mt-2">
+                                            <a :href="`/shared_ressources/${encodeURIComponent(ressource.filename)}`" target="_blank" class="text-blue-600 hover:underline">👁️ Visualiser</a>
+                                            <a :href="`/shared_ressources/${encodeURIComponent(ressource.filename)}?download=true`" download class="text-green-600 hover:underline">⬇️ Télécharger</a>
+                                        </div>
+                                        <template x-if="isAudio(ressource.filename)">
+                                            <audio controls class="mt-2 w-full">
+                                                <source :src="`/shared_ressources/${encodeURIComponent(ressource.filename)}`" :type="`audio/${getFileExtension(ressource.filename)}`">
+                                                Votre navigateur ne supporte pas l'audio.
+                                            </audio>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="activeModal === 'tracks'">
+                <div>
+                    <h3 class="text-2xl font-bold mb-4">Mes Pistes Audio</h3>
+                    <div x-data="tracksModule()" x-init="init()">
+                        <form @submit.prevent="uploadTrack" enctype="multipart/form-data" class="space-y-4">
+                            <input type="text" x-model="trackForm.title" placeholder="Titre de la piste" required class="w-full border p-2 rounded" />
+                            <input type="text" x-model="trackForm.artist" placeholder="Nom de l’artiste" required class="w-full border p-2 rounded" />
+                            <input type="text" x-model="trackForm.tags" placeholder="Tags séparés par des virgules" class="w-full border p-2 rounded" />
+                            <input type="file" @change="handleTrackUpload" accept="audio/*" required class="w-full border p-2 rounded" />
+                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Envoyer</button>
+                        </form>
+                        <pre x-cloak x-show="message" :class="messageType === 'success' ? 'text-green-600' : 'text-red-600'" class="mt-4 text-center" x-text="message"></pre>
+
+                        <h2 class="text-xl font-semibold mt-6">📂 Pistes disponibles</h2>
+                        <div class="space-y-4 mt-2">
+                            <template x-if="tracks.length === 0">
+                                <p class="text-gray-500 text-center">Aucune piste trouvée.</p>
+                            </template>
+                            <template x-for="track in tracks" :key="track.id">
+                                <div class="border p-3 rounded bg-gray-50">
+                                    <div class="font-semibold" x-text="`${track.title} — ${track.artist}`"></div>
+                                    <audio controls class="w-full mt-2" x-show="track.streamUrl" :src="track.streamUrl">
+                                        Votre navigateur ne supporte pas l'audio HTML5.
+                                    </audio>
+                                    <button @click="generateStreamUrl(track.filename, track.id)" x-show="!track.streamUrl" class="bg-green-600 text-white px-3 py-1 mt-2 rounded">
+                                        🎧 Lire via lien sécurisé
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <div x-cloak x-show="modalMessage" :class="modalMessageType === 'success' ? 'text-green-600' : 'text-red-600'" class="mt-4 text-center" x-text="modalMessage"></div>
+
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('mainApp', () => ({
+                isLoggedIn: false,
+                username: '',
+                loginEmail: '',
+                loginPassword: '',
+                signupUsername: '',
+                signupEmail: '',
+                signupPassword: '',
+                message: '',
+                messageType: 'info', // 'success' or 'error'
+
+                activeModal: null,
+                modalMessage: '',
+                modalMessageType: 'info',
+
+                init() {
+                    this.checkLoginStatus();
+                },
+
+                async checkLoginStatus() {
+                    const token = localStorage.getItem('access_token');
+                    if (token) {
+                        try {
+                            const res = await fetch('/me', {
+                                headers: { 'Authorization': 'Bearer ' + token }
+                            });
+                            if (res.ok) {
+                                const user = await res.json();
+                                this.username = user.username;
+                                this.isLoggedIn = true;
+                            } else {
+                                localStorage.removeItem('access_token');
+                                this.isLoggedIn = false;
+                            }
+                        } catch (err) {
+                            console.error("Erreur de vérification de connexion:", err);
+                            localStorage.removeItem('access_token');
+                            this.isLoggedIn = false;
+                        }
+                    }
+                },
+
+                async login() {
+                    try {
+                        const res = await fetch('/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: this.loginEmail, password: this.loginPassword })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            localStorage.setItem('access_token', data.access_token);
+                            this.username = data.username; // Assurez-vous que votre API renvoie le username
+                            this.isLoggedIn = true;
+                            this.message = 'Connexion réussie !';
+                            this.messageType = 'success';
+                            this.loginEmail = '';
+                            this.loginPassword = '';
+                        } else {
+                            this.message = 'Erreur de connexion: ' + (data.message || 'Identifiants invalides');
+                            this.messageType = 'error';
+                        }
+                    } catch (err) {
+                        this.message = 'Erreur réseau lors de la connexion.';
+                        this.messageType = 'error';
+                        console.error("Erreur login:", err);
+                    }
+                },
+
+                async signup() {
+                    try {
+                        const res = await fetch('/signup', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: this.signupUsername, email: this.signupEmail, password: this.signupPassword })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            this.message = 'Inscription réussie ! Vous pouvez maintenant vous connecter.';
+                            this.messageType = 'success';
+                            this.signupUsername = '';
+                            this.signupEmail = '';
+                            this.signupPassword = '';
+                        } else {
+                            this.message = 'Erreur d\'inscription: ' + (data.message || 'Veuillez réessayer.');
+                            this.messageType = 'error';
+                        }
+                    } catch (err) {
+                        this.message = 'Erreur réseau lors de l\'inscription.';
+                        this.messageType = 'error';
+                        console.error("Erreur signup:", err);
+                    }
+                },
+
+                logout() {
+                    localStorage.removeItem('access_token');
+                    this.isLoggedIn = false;
+                    this.username = '';
+                    this.activeModal = null; // Fermer les modals si ouverts
+                    this.message = 'Déconnexion réussie.';
+                    this.messageType = 'success';
+                },
+
+                openModal(feature) {
+                    this.activeModal = feature;
+                    this.modalMessage = '';
+                    this.modalMessageType = 'info';
+                    // Initialiser des données spécifiques aux modules si nécessaire
+                    if (feature === 'sharedRessources') {
+                         // Force re-initialization of sharedRessourcesModule to load data
+                        this.$nextTick(() => {
+                            if (typeof sharedRessourcesModule().init === 'function') {
+                                Object.assign(this.$data, sharedRessourcesModule());
+                                this.$data.init(); // Directly call init if it's available
+                            }
+                        });
+                    } else if (feature === 'tracks') {
+                         this.$nextTick(() => {
+                            if (typeof tracksModule().init === 'function') {
+                                Object.assign(this.$data, tracksModule());
+                                this.$data.init();
+                            }
+                        });
+                    }
+                },
+
+                closeModal() {
+                    this.activeModal = null;
+                }
+            }));
+
+            // --- Logique pour les Ressources Partagées (Adaptation de shared_ressources.html) ---
+            Alpine.data('sharedRessourcesModule', () => ({
+                uploadForm: {
+                    title: '',
+                    description: '',
+                    type: '',
+                    is_public: true,
+                    file: null
+                },
+                tagInput: '',
+                selectedTags: [],
+                tagSuggestions: [],
+                ressources: [],
+                searchFilters: {
+                    tag: '',
+                    type: '',
+                    title: '',
+                    uploader: ''
+                },
+                message: '', // for module specific messages
+                messageType: 'info', // 'success' or 'error'
+
+                init() {
+                    this.loadRessources();
+                    this.loadRecommendedTags();
+                },
+
+                async getValidToken() {
+                    const token = localStorage.getItem('access_token');
+                    if (!token) {
+                        this.message = "❌ Token d’authentification manquant. Veuillez vous connecter.";
+                        this.messageType = 'error';
+                        throw new Error("Token manquant");
+                    }
+                    return token;
+                },
+
+                handleFileUpload(event) {
+                    this.uploadForm.file = event.target.files[0];
+                },
+
+                async uploadResource() {
+                    const formData = new FormData();
+                    formData.append('title', this.uploadForm.title);
+                    formData.append('description', this.uploadForm.description);
+                    formData.append('type', this.uploadForm.type);
+                    formData.append('file', this.uploadForm.file);
+                    formData.append('is_public', this.uploadForm.is_public);
+                    formData.append('tags', this.selectedTags.join(',')); // Envoi des tags
+
+                    try {
+                        const token = await this.getValidToken();
+                        const res = await fetch('/shared_ressources', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + token },
+                            body: formData
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.message = "✅ Ressource partagée : " + data.title;
+                            this.messageType = 'success';
+                            // Reset form and reload
+                            this.uploadForm.title = '';
+                            this.uploadForm.description = '';
+                            this.uploadForm.type = '';
+                            this.uploadForm.is_public = true;
+                            this.uploadForm.file = null;
+                            this.selectedTags = [];
+                            this.tagInput = '';
+                            this.loadRessources();
+                        } else {
+                            const errorText = await res.text();
+                            this.message = "❌ Erreur : " + res.status + " — " + errorText;
+                            this.messageType = 'error';
+                        }
+                    } catch (err) {
+                        this.message = "❌ Erreur upload: " + err.message;
+                        this.messageType = 'error';
+                        console.error("Erreur upload:", err);
+                    }
+                },
+
+                async searchTags() {
+                    const q = this.tagInput.trim();
+                    if (q === "") {
+                        this.tagSuggestions = [];
+                        return;
+                    }
+                    try {
+                        const res = await fetch(`/tags/search?q=${encodeURIComponent(q)}`);
+                        const tags = await res.json();
+                        this.tagSuggestions = tags.filter(tag => !this.selectedTags.includes(tag));
+                    } catch (e) {
+                        console.error("Erreur suggestions tags:", e);
+                        this.tagSuggestions = [];
+                    }
+                },
+
+                addTag(tag) {
+                    if (this.selectedTags.length < 5 && !this.selectedTags.includes(tag)) {
+                        this.selectedTags.push(tag);
+                    }
+                    this.tagInput = '';
+                    this.tagSuggestions = [];
+                },
+
+                removeTag(tag) {
+                    this.selectedTags = this.selectedTags.filter(t => t !== tag);
+                },
+
+                async loadRecommendedTags() {
+                    try {
+                        const res = await fetch('/tags');
+                        const tags = await res.json();
+                        // For display purposes, you might want to limit or style these differently
+                        // For simplicity, just populate directly here.
+                        // In a real app, recommendedTags div would be part of this module's template
+                    } catch (e) {
+                        console.error("Erreur chargement tags recommandés:", e);
+                    }
+                },
+
+                async loadRessources(filters = this.searchFilters) {
+                    try {
+                        const token = await this.getValidToken();
+                        const params = new URLSearchParams(filters);
+                        const res = await fetch(`/shared_ressources/search?${params}`, {
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+
+                        if (!res.ok) {
+                            this.message = "❌ Erreur chargement des ressources (" + res.status + ")";
+                            this.messageType = 'error';
+                            this.ressources = [];
+                            return;
+                        }
+                        this.ressources = await res.json();
+                    } catch (err) {
+                        this.message = "❌ Erreur JS lors du chargement des ressources: " + err.message;
+                        this.messageType = 'error';
+                        this.ressources = [];
+                        console.error("Erreur loadRessources:", err);
+                    }
+                },
+
+                searchRessources() {
+                    this.loadRessources(this.searchFilters);
+                },
+
+                isAudio(filename) {
+                    const ext = filename.split('.').pop().toLowerCase();
+                    return ["mp3", "wav", "ogg", "flac"].includes(ext);
+                },
+
+                getFileExtension(filename) {
+                    return filename.split('.').pop().toLowerCase();
+                }
+            }));
+
+
+            // --- Logique pour les Pistes Audio (Adaptation de l'upload_track.html) ---
+            Alpine.data('tracksModule', () => ({
+                trackForm: {
+                    title: '',
+                    artist: '',
+                    tags: '',
+                    audio: null
+                },
+                tracks: [],
+                message: '', // for module specific messages
+                messageType: 'info', // 'success' or 'error'
+
+                init() {
+                    this.loadTracks();
+                },
+
+                async getValidToken() {
+                    const token = localStorage.getItem('access_token');
+                    if (!token) {
+                        this.message = "❌ Token d’authentification manquant. Veuillez vous connecter.";
+                        this.messageType = 'error';
+                        throw new Error("Token manquant");
+                    }
+                    return token;
+                },
+
+                handleTrackUpload(event) {
+                    this.trackForm.audio = event.target.files[0];
+                },
+
+                async uploadTrack() {
+                    const formData = new FormData();
+                    formData.append('title', this.trackForm.title);
+                    formData.append('artist', this.trackForm.artist);
+                    formData.append('tags', this.trackForm.tags);
+                    formData.append('audio', this.trackForm.audio);
+
+                    try {
+                        const token = await this.getValidToken();
+                        const res = await fetch('/tracks', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + token },
+                            body: formData
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.message = "✅ Piste ajoutée : " + data.title;
+                            this.messageType = 'success';
+                            // Reset form and reload tracks
+                            this.trackForm.title = '';
+                            this.trackForm.artist = '';
+                            this.trackForm.tags = '';
+                            this.trackForm.audio = null;
+                            this.loadTracks();
+                        } else {
+                            const errorText = await res.text();
+                            this.message = "❌ Erreur : " + res.status + " — " + errorText;
+                            this.messageType = 'error';
+                        }
+                    } catch (err) {
+                        this.message = "❌ Erreur upload: " + err.message;
+                        this.messageType = 'error';
+                        console.error("Erreur upload:", err);
+                    }
+                },
+
+                async loadTracks() {
+                    try {
+                        const token = await this.getValidToken();
+                        const res = await fetch('/tracks', {
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+
+                        if (!res.ok) {
+                            this.message = "❌ Impossible de charger les pistes (" + res.status + ")";
+                            this.messageType = 'error';
+                            this.tracks = [];
+                            return;
+                        }
+                        const tracksData = await res.json();
+                        this.tracks = tracksData.map(t => ({ ...t, streamUrl: null })); // Add streamUrl property
+                    } catch (err) {
+                        this.message = "❌ Erreur chargement des pistes: " + err.message;
+                        this.messageType = 'error';
+                        this.tracks = [];
+                        console.error("Erreur loadTracks:", err);
+                    }
+                },
+
+                async generateStreamUrl(filename, trackId) {
+                    try {
+                        const token = await this.getValidToken();
+                        const url = `/generate-stream-url?filename=${encodeURIComponent(filename)}`;
+                        const res = await fetch(url, {
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+
+                        if (!res.ok) {
+                            this.message = "❌ Erreur lien signé (" + res.status + ")";
+                            this.messageType = 'error';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.url) {
+                            this.message = "❌ Lien de streaming manquant dans la réponse.";
+                            this.messageType = 'error';
+                            return;
+                        }
+                        // Update the specific track with the generated stream URL
+                        const index = this.tracks.findIndex(t => t.id === trackId);
+                        if (index !== -1) {
+                            this.tracks[index].streamUrl = data.url;
+                        }
+                    } catch (err) {
+                        this.message = "❌ Erreur lecture audio: " + err.message;
+                        this.messageType = 'error';
+                        console.error("Erreur generateStreamUrl:", err);
+                    }
+                }
+            }));
+        });
+    </script>
+
+    <style>
+        .btn-primary {
+            @apply bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold transition-colors shadow-md;
+        }
+    </style>
+</body>
+</html>

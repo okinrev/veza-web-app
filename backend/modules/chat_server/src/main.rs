@@ -227,15 +227,16 @@ async fn handle_connection(
                         WsInbound::DmHistory { with, limit } => {
                             if user_exists(&hub, with).await {
                                 let msgs = fetch_dm_history(&hub, user_id, with, limit.unwrap_or(50)).await;
-                                for message in msgs {
-                                    let payload = json!({
+                                let payload: Vec<_> = msgs.into_iter().map(|message| {
+                                    json!({
                                         "username": message.username,
                                         "fromUser": message.from_user,
                                         "content": message.content,
                                         "timestamp": message.timestamp
-                                    });
-                                    let _ = tx.send(Message::Text(payload.to_string()));
-                                }                                
+                                    })
+                                }).collect();
+                                
+                                let _ = tx.send(make_json_message("dm_history", payload));                                                                
                             } else {
                                 let _ = tx.send(make_json_message("error", json!({"message": "Utilisateur introuvable pour DM."})));
                             }

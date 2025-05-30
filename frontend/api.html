@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation API - Talas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        /* Couleurs personnalisées pour les méthodes HTTP */
+        .method-get { @apply bg-red-500; } /* Rouge pour GET */
+        .method-post { @apply bg-blue-500; } /* Bleu pour POST */
+        .method-put { @apply bg-purple-500; } /* Violet pour PUT */
+        .method-delete { @apply bg-gray-600; } /* Gris foncé pour DELETE (inchangé) */
+        .method-websocket { @apply bg-green-500; } /* Vert pour WEBSOCKET (inchangé) */
+        .method-other { @apply bg-gray-500; } /* Gris pour les autres méthodes */
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+    <div class="max-w-4xl mx-auto p-6">
+        <h1 class="text-3xl font-bold mb-8 text-center text-blue-700">Documentation API Talas</h1>
+
+        <div x-data="apiDocs()" x-init="init()">
+            <template x-for="(sector, sectorName) in sectors" :key="sectorName">
+                <div class="mb-8 bg-white shadow-lg rounded-lg p-6">
+                    <h2 class="text-2xl font-semibold mb-4 text-blue-600" x-text="sectorName"></h2>
+                    <div class="space-y-4">
+                        <template x-for="(route, index) in sector" :key="index">
+                            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                <button
+                                    @click="toggleDescription(sectorName, index)"
+                                    class="w-full text-left p-4 flex items-center justify-between transition-colors duration-200"
+                                    :class="{ 'bg-gray-50 hover:bg-gray-100': !route.showDescription, 'bg-blue-50 hover:bg-blue-100': route.showDescription }"
+                                >
+                                    <div class="flex items-center space-x-3">
+                                        <span
+                                            class="px-3 py-1 text-xs font-bold text-white rounded-full uppercase"
+                                            :class="`method-${route.method.toLowerCase()}`"
+                                            x-text="route.method"
+                                        ></span>
+                                        <code class="font-mono text-sm text-gray-700" x-text="route.path"></code>
+                                    </div>
+                                    <svg
+                                        class="h-5 w-5 text-gray-500 transition-transform duration-200"
+                                        :class="{ 'rotate-90': route.showDescription }"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                    >
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </button>
+                                <div x-show="route.showDescription" x-cloak class="p-4 bg-gray-50 border-t border-gray-200 text-gray-600">
+                                    <p x-text="route.description"></p>
+                                    <div x-show="route.notes" class="mt-2 text-sm text-gray-500">
+                                        <strong class="font-semibold">Notes:</strong> <span x-text="route.notes"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <script>
+        function apiDocs() {
+            return {
+                sectors: {
+                    "Authentification & Utilisateurs": [
+                        { method: "POST", path: "/signup", description: "Inscrit un **nouvel utilisateur** sur la plateforme Talas. Cette route crée un compte unique avec un nom d'utilisateur, une adresse email et un mot de passe.", notes: "Requiert un corps JSON avec les champs obligatoires : `'username'`, `'email'`, et `'password'`. En cas de succès, elle retourne des tokens d'accès pour l'authentification future." },
+                        { method: "POST", path: "/login", description: "Authentifie un utilisateur existant. Cette route vérifie les identifiants fournis et, si valides, émet des tokens de session.", notes: "Requiert un corps JSON avec les champs `'email'` et `'password'`. Retourne un `'access_token'` et un `'refresh_token'` nécessaires pour les requêtes authentifiées." },
+                        { method: "POST", path: "/refresh", description: "Rafraîchit un token d'accès expiré. Cela permet de maintenir une session utilisateur active sans avoir à se reconnecter.", notes: "Requiert un corps JSON contenant un `'refresh_token'` valide. Retourne un nouveau `'access_token'`." },
+                        { method: "GET", path: "/users/me", description: "Récupère toutes les informations du profil de l'utilisateur actuellement authentifié.", notes: "Nécessite un `'access_token'` valide dans l'en-tête `Authorization`." },
+                        { method: "PUT", path: "/users/me", description: "Met à jour les informations du profil de l'utilisateur connecté, telles que l'adresse email ou le nom d'utilisateur.", notes: "Nécessite un `'access_token'`. Peut mettre à jour les champs `'email'` et/ou `'username'` via un corps JSON." },
+                        { method: "PUT", path: "/users/password", description: "Permet à l'utilisateur authentifié de changer son mot de passe actuel. Une vérification du mot de passe existant est requise.", notes: "Nécessite un `'access_token'`. Requiert un corps JSON avec `'old_password'` et `'new_password'`." },
+                        { method: "GET", path: "/users", description: "Liste tous les utilisateurs enregistrés sur la plateforme. Accessible uniquement par les administrateurs ou les utilisateurs avec les permissions adéquates.", notes: "Nécessite un `'access_token'` valide. Peut inclure des paramètres de pagination ou de filtrage." },
+                        { method: "GET", path: "/users/except-me", description: "Récupère une liste de tous les utilisateurs à l'exception de l'utilisateur actuellement connecté. Utile pour les fonctionnalités de messagerie directe.", notes: "Nécessite un `'access_token'`. Souvent utilisé pour les listes de sélection pour l'envoi de DM." },
+                        { method: "GET", path: "/users/search?q={query}", description: "Recherche des utilisateurs par une correspondance partielle ou complète avec leur nom d'utilisateur ou leur adresse email.", notes: "Nécessite un `'access_token'`. Le paramètre de requête `q` est obligatoire." },
+                        { method: "GET", path: "/users/{id}/avatar", description: "Récupère l'image d'avatar d'un utilisateur spécifique. L'ID de l'utilisateur est passé dans l'URL.", notes: "L'ID de l'utilisateur est un paramètre de route (`{id}`). Retourne l'image directement." },
+                    ],
+                    "Pistes Musicales (Tracks)": [
+                        { method: "GET", path: "/tracks/all", description: "Récupère une liste complète de toutes les pistes musicales disponibles sur la plateforme. Idéal pour l'affichage initial ou la navigation.", notes: "Cet endpoint est fréquemment appelé par des interfaces utilisateur comme `gg.html` pour peupler les listes de lecture." },
+                        { method: "POST", path: "/tracks", description: "Permet à un utilisateur de téléverser une nouvelle piste musicale. Les métadonnées et le fichier audio sont envoyés simultanément.", notes: "Requiert un formulaire multipart (`multipart/form-data`) avec les champs `'title'`, `'artist'`, `'tags'` (séparés par des virgules), et `'audio'` (le fichier MP3/WAV, etc.). Nécessite un token d'accès." },
+                        { method: "GET", path: "/stream/{filename}", description: "Diffuse un fichier audio directement depuis le serveur. Cette route est conçue pour le streaming public ou non-sécurisé.", notes: "Le nom du fichier audio est passé en paramètre de route. Aucune authentification n'est requise." },
+                        { method: "GET", path: "/stream/signed/{filename}?expires={timestamp}&signature={sig}", description: "Diffuse un fichier audio via une URL sécurisée et signée. La signature garantit l'accès autorisé et limite la durée de validité.", notes: "Pour le streaming protégé. L'URL contient un horodatage d'expiration (`expires`) et une signature cryptographique (`signature`) pour valider l'accès." },
+                        { method: "GET", path: "/tracks/{id}", description: "Récupère les détails spécifiques d'une piste musicale individuelle, incluant son titre, artiste, tags, et informations de l'uploader.", notes: "L'ID de la piste est un paramètre de route (`{id}`)." },
+                        { method: "PUT", path: "/tracks/{id}", description: "Met à jour les informations d'une piste musicale existante. Seul l'uploader ou un administrateur peut modifier la piste.", notes: "Nécessite un `'access_token'`. L'ID de la piste est un paramètre de route (`{id}`). Les champs modifiables sont envoyés dans le corps JSON." },
+                        { method: "DELETE", path: "/tracks/{id}", description: "Supprime une piste musicale de la plateforme. Cette action est irréversible et nécessite des droits d'accès suffisants.", notes: "Nécessite un `'access_token'`. L'ID de la piste est un paramètre de route (`{id}`)." },
+                    ],
+                    "Ressources Partagées": [
+                        { method: "GET", path: "/resources", description: "Liste toutes les ressources partagées publiquement disponibles sur la plateforme. Cela inclut des documents, images, vidéos, etc.", notes: "Cet endpoint est souvent appelé par des interfaces utilisateur comme `gg.html` pour afficher le contenu partagé." },
+                        { method: "POST", path: "/shared_ressources", description: "Uploade une nouvelle ressource à partager publiquement. Cette route permet d'ajouter des fichiers avec leurs métadonnées associées.", notes: "Requiert un formulaire multipart (`multipart/form-data`) avec les champs `'title'`, `'type'` (e.g., 'document', 'image'), `'tags'`, `'description'`, et `'file'` (le fichier à uploader). Nécessite un token d'accès." },
+                        { method: "GET", path: "/shared_ressources/{id}", description: "Récupère les détails et métadonnées d'une ressource partagée spécifique par son identifiant unique.", notes: "L'ID de la ressource est un paramètre de route (`{id}`)." },
+                        { method: "PUT", path: "/shared_ressources/{id}", description: "Met à jour les informations d'une ressource partagée existante. Seul l'uploader ou un administrateur peut effectuer cette modification.", notes: "Nécessite un `'access_token'`. L'ID de la ressource est un paramètre de route (`{id}`). Les champs à modifier sont envoyés dans le corps JSON." },
+                        { method: "DELETE", path: "/shared_ressources/{id}", description: "Supprime une ressource partagée de la plateforme. Cette action est irréversible et nécessite des permissions d'administrateur ou d'uploader.", notes: "Nécessite un `'access_token'`. L'ID de la ressource est un paramètre de route (`{id}`)." },
+                        { method: "GET", path: "/shared_ressources/download/{filename}", description: "Télécharge un fichier de ressource partagée directement. Cette route est conçue pour faciliter l'accès aux fichiers partagés.", notes: "Le nom du fichier est passé en paramètre de route. Aucune authentification n'est généralement requise pour les ressources publiques." },
+                        { method: "GET", path: "/shared_ressources/myuploads", description: "Liste toutes les ressources qui ont été téléversées par l'utilisateur actuellement connecté.", notes: "Nécessite un `'access_token'` valide. Permet à l'utilisateur de gérer ses propres contributions." },
+                    ],
+                    "Suggestions & Tags": [
+                        { method: "GET", path: "/suggestions?tag={query}", description: "Fournit des suggestions basées sur une requête, utile pour l'autocomplétion ou la découverte de contenu.", notes: "Le paramètre de requête `tag` est le plus commun. Peut également prendre `title`, `uploader`, `doc`, `user`, ou `track` comme paramètres pour des suggestions filtrées." },
+                        { method: "GET", path: "/tags", description: "Récupère une liste de tous les tags existants sur la plateforme, utilisés pour categoriser les pistes, ressources, etc.", notes: "Utilisé pour afficher toutes les options de tags disponibles pour la recherche ou le filtrage." },
+                        { method: "GET", path: "/tags/search?q={query}", description: "Recherche des tags spécifiques en fonction d'une chaîne de caractères. Utile pour filtrer les tags ou trouver des correspondances exactes/partielles.", notes: "Le paramètre de requête `q` est utilisé pour la recherche de tags." },
+                        { method: "GET", path: "/tags/popular", description: "Récupère une liste des tags les plus fréquemment utilisés ou les plus populaires sur la plateforme, classés par pertinence ou nombre d'occurrences.", notes: "Idéal pour identifier les sujets ou catégories tendances." },
+                    ],
+                    "Chat (WebSockets)": [
+                        { method: "WEBSOCKET", path: "ws://localhost:8000/ws/dm?token={token}", description: "Établit une connexion WebSocket pour les messages directs (DM). Permet l'envoi et la réception de messages privés en temps réel.", notes: "Nécessite un token JWT valide passé comme paramètre de requête `token`. Les messages sont échangés via cette connexion persistante." },
+                        { method: "WEBSOCKET", path: "ws://localhost:8000/ws/room?token={token}", description: "Établit une connexion WebSocket pour les salons de discussion publics. Facilite la communication en temps réel au sein de groupes ou de canaux.", notes: "Nécessite un token JWT valide passé comme paramètre de requête `token`. Les messages sont diffusés à tous les participants du salon." },
+                        { method: "GET", path: "/chat/dm/{user_id}", description: "Récupère l'historique des messages directs échangés avec un utilisateur spécifique. Utile pour afficher les conversations passées.", notes: "Nécessite un `'access_token'`. L'ID de l'autre utilisateur est un paramètre de route (`{user_id}`)." },
+                        { method: "GET", path: "/chat/rooms", description: "Liste tous les salons de discussion publics disponibles sur la plateforme. Utile pour permettre aux utilisateurs de rejoindre ou de découvrir des salons.", notes: "Utilisé pour afficher les salons auxquels un utilisateur peut participer." },
+                        { method: "POST", path: "/chat/rooms", description: "Crée un nouveau salon de discussion, qui peut être public ou privé. L'utilisateur qui crée le salon en devient l'administrateur.", notes: "Requiert un corps JSON avec les champs `'name'` (nom du salon) et `'is_private'` (booléen). Nécessite un token d'accès." },
+                        { method: "GET", path: "/chat/rooms/{room}/messages", description: "Récupère l'historique des messages d'un salon de discussion spécifique. Permet de charger les messages précédents lors de l'entrée dans un salon.", notes: "Le nom du salon est un paramètre de route (`{room}`). Nécessite un token d'accès et potentiellement des droits d'accès au salon." },
+                    ],
+                    "Produits & Fichiers Associés": [
+                        { method: "GET", path: "/products", description: "Liste tous les produits appartenant à l'utilisateur actuellement connecté. Idéal pour gérer son catalogue personnel de produits.", notes: "Nécessite un `'access_token'`. Retourne un tableau d'objets produit." },
+                        { method: "GET", path: "/products/{id}", description: "Récupère les détails complets d'un produit spécifique, y compris ses métadonnées, descriptions et relations avec les fichiers.", notes: "L'ID du produit est un paramètre de route (`{id}`). Nécessite un token d'accès pour les produits privés." },
+                        { method: "POST", path: "/products", description: "Crée un nouveau produit. Cette route permet d'ajouter un produit à son catalogue avec toutes les informations pertinentes.", notes: "Requiert un corps JSON avec les détails du produit (e.g., `'name'`, `'description'`, `'price'`, etc.). Nécessite un token d'accès." },
+                        { method: "PUT", path: "/products/{id}", description: "Met à jour les informations d'un produit existant. Les modifications peuvent concerner n'importe quel champ du produit.", notes: "Nécessite un `'access_token'`. L'ID du produit est un paramètre de route (`{id}`). Les champs à mettre à jour sont envoyés dans le corps JSON." },
+                        { method: "DELETE", path: "/products/{id}", description: "Supprime un produit de la plateforme. Cette action est irréversible et retire le produit ainsi que ses associations de fichiers.", notes: "Nécessite un `'access_token'`. L'ID du produit est un paramètre de route (`{id}`)." },
+                        { method: "POST", path: "/products/{id}/files", description: "Uploade un nouveau fichier et l'associe à un produit spécifique. Cela peut inclure des images de produit, des fichiers téléchargeables, etc.", notes: "L'ID du produit est un paramètre de route (`{id}`). Requiert un formulaire multipart (`multipart/form-data`) avec le fichier. Nécessite un token d'accès." },
+                        { method: "GET", path: "/products/{id}/files", description: "Liste tous les fichiers associés à un produit spécifique. Utile pour afficher les actifs liés à un produit donné.", notes: "L'ID du produit est un paramètre de route (`{id}`)." },
+                        { method: "GET", path: "/products/{product_id}/files/{file_id}/download", description: "Télécharge un fichier spécifique associé à un produit. Cette route gère l'accès sécurisé aux fichiers du produit.", notes: "Les IDs du produit et du fichier sont des paramètres de route (`{product_id}`, `{file_id}`). Peut nécessiter un token d'accès en fonction des permissions du fichier." },
+                        { method: "GET", path: "/products/{id}/internal-docs", description: "Liste les documents internes ou privés associés à un produit. Ces documents ne sont généralement pas accessibles au public.", notes: "L'ID du produit est un paramètre de route (`{id}`). Nécessite des permissions spécifiques (e.g., administrateur, propriétaire du produit)." },
+                        { method: "GET", path: "/products/{id}/internal-docs/{doc_id}", description: "Télécharge un document interne spécifique associé à un produit. Accès restreint aux utilisateurs autorisés.", notes: "Les IDs du produit et du document sont des paramètres de route (`{id}`, `{doc_id}`). Nécessite des permissions spécifiques." },
+                    ],
+                },
+                
+                init() {
+                    // Initialize showDescription for all routes to false
+                    for (const sectorName in this.sectors) {
+                        this.sectors[sectorName].forEach(route => {
+                            route.showDescription = false;
+                        });
+                    }
+                },
+
+                toggleDescription(sectorName, index) {
+                    this.sectors[sectorName][index].showDescription = !this.sectors[sectorName][index].showDescription;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
