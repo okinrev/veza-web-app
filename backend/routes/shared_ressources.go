@@ -14,7 +14,10 @@ func RegisterSharedRoutes(r *mux.Router) {
 
 	protected.HandleFunc("", handlers.UploadSharedResource).Methods("POST")
 	protected.HandleFunc("", handlers.ListSharedResources).Methods("GET")
-	r.HandleFunc("/shared_ressources/search", handlers.SearchSharedResources).Methods("GET")
-	r.HandleFunc("/shared_ressources/{filename}", handlers.ServeSharedFile).Methods("GET")
+	protected.HandleFunc("/search", handlers.SearchSharedResources).Methods("GET")
+	protected.HandleFunc("/{id:[0-9]+}", handlers.UpdateSharedResource).Methods("PUT")
+	protected.HandleFunc("/{id:[0-9]+}", handlers.DeleteSharedResource).Methods("DELETE")
 
+	// Visualisation publique
+	r.HandleFunc("/shared_ressources/{filename}", handlers.ServeSharedFile).Methods("GET")
 }

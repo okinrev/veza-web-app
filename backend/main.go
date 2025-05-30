@@ -39,6 +39,8 @@ func main() {
 
 	routes.RegisterSharedRoutes(r)
 
+	routes.RegisterTagRoutes(r)
+
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("../frontend")))
 
 

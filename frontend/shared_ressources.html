@@ -1,44 +1,200 @@
+<!-- file: frontend/shared_ressources.html -->
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Ressources partagées — Talas</title>
+  <title>🎶 Talas — Ressources partagées</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="p-6 font-sans bg-gray-100">
-  <div class="max-w-3xl mx-auto bg-white shadow p-6 rounded space-y-4">
-    <h1 class="text-2xl font-bold mb-4">📁 Ressources partagées</h1>
+<body class="bg-gray-50 text-gray-800 font-sans">
+  <div class="max-w-5xl mx-auto p-6 space-y-8">
+    <header class="flex items-center justify-between">
+      <h1 class="text-4xl font-extrabold tracking-tight">📁 Talas — Ressources</h1>
+    </header>
 
-    <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
-      <input type="text" name="title" placeholder="Titre de la ressource" required class="w-full border p-2 rounded" />
-      <select name="type" required class="w-full border p-2 rounded">
-        <option value="">-- Sélectionner un type --</option>
-        <option value="sample">🎵 Sample</option>
-        <option value="preset">🎛️ Preset</option>
-        <option value="project">📁 Projet</option>
-        <option value="mix">🎚️ Mix</option>
-        <option value="stem">🎙️ Stem</option>
-      </select>      
-      <input type="file" name="file" required class="w-full border p-2 rounded" />
-      <input type="text" name="tags" id="tagInput" placeholder="Tags (ex: hiphop, ambient)" class="w-full border p-2 rounded" list="tagSuggestions" />
-      <datalist id="tagSuggestions"></datalist>
-      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Partager</button>
-    </form>
+    <!-- Onglets -->
+    <nav class="flex space-x-6 border-b pb-2 text-sm font-medium">
+      <button id="tabGeneral" class="px-2 pb-2 border-b-2 border-blue-600 text-blue-600">🌍 Liste générale</button>
+      <button id="tabMyUploads" class="px-2 pb-2 text-gray-500 hover:text-gray-900">📤 Mes uploads</button>
+    </nav>
 
-    <pre id="result" class="bg-gray-50 border p-2 text-sm mt-4 overflow-x-auto"></pre>
+    <!-- Tags recommandés -->
+    <section class="bg-white rounded-lg shadow p-6 space-y-2">
+      <h2 class="text-xl font-semibold">🎯 Tags populaires</h2>
+      <div id="recommendedTags" class="flex flex-wrap gap-2 text-sm text-gray-700"></div>
+    </section>
 
-    <form id="searchForm" class="flex gap-4 mb-4">
-      <input type="text" id="searchTag" placeholder="Tag" class="border p-2 rounded w-1/3" />
-      <input type="text" id="searchType" placeholder="Type (sample...)" class="border p-2 rounded w-1/3" />
-      <input type="text" id="searchTitle" placeholder="Titre" class="border p-2 rounded w-1/3" />
-      <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded">🔍 Rechercher</button>
-    </form>    
+    <!-- Formulaire d'upload -->
+    <section class="bg-white rounded-lg shadow p-6 space-y-4">
+      <h2 class="text-xl font-semibold">➕ Partager une ressource</h2>
+      <form id="uploadForm" enctype="multipart/form-data" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <input type="text" name="title" placeholder="Titre de la ressource" required class="border p-2 rounded col-span-2" />
+        <textarea name="description" placeholder="Description (facultative)" class="border p-2 rounded col-span-2"></textarea>
+        <select name="type" required class="border p-2 rounded">
+          <option value="">-- Sélectionner un type --</option>
+          <option value="sample">🎵 Sample</option>
+          <option value="preset">🎛️ Preset</option>
+          <option value="project">📁 Projet</option>
+          <option value="mix">🎚️ Mix</option>
+          <option value="stem">🎙️ Stem</option>
+        </select>
+        <input type="file" name="file" required class="border p-2 rounded" />
+        <div class="col-span-2">
+          <label for="tagInput" class="block text-sm font-medium">Tags (jusqu'à 5)</label>
+          <div id="tagPills" class="flex flex-wrap gap-2 my-2"></div>
+          <input type="text" id="tagInput" placeholder="Commencez à taper..." class="border p-2 rounded w-full" />
+          <ul id="tagSuggestions" class="border bg-white rounded shadow mt-1 hidden absolute z-10 max-h-48 overflow-y-auto text-sm"></ul>
+        </div>
+        <input type="hidden" name="tags" id="tagsHidden" />        
+        <label class="col-span-2 inline-flex items-center">
+          <input type="checkbox" name="is_public" class="form-checkbox mr-2" checked>
+          Ressource publique
+        </label>
+        <button type="submit" class="col-span-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">📤 Partager</button>
+      </form>
+    </section>
 
-    <h2 class="text-xl font-semibold mt-6">📚 Fichiers disponibles</h2>
-    <div id="ressourceList" class="space-y-4 mt-2"></div>
+    <!-- Recherche avancée -->
+    <section class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-semibold mb-4">🔎 Recherche avancée</h2>
+      <form id="searchForm" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <input type="text" id="searchTag" placeholder="Tag" class="border p-2 rounded" />
+        <select id="searchType" class="border p-2 rounded">
+          <option value="">-- Tous les types --</option>
+          <option value="sample">🎵 Sample</option>
+          <option value="preset">🎛️ Preset</option>
+          <option value="project">📁 Projet</option>
+          <option value="mix">🎚️ Mix</option>
+          <option value="stem">🎙️ Stem</option>
+        </select>        
+        <input type="text" id="searchTitle" placeholder="Titre" class="border p-2 rounded" />
+        <input type="text" id="searchUploader" placeholder="Uploader (username)" class="border p-2 rounded" />
+        <button type="submit" class="col-span-2 sm:col-span-1 bg-gray-800 hover:bg-black text-white px-4 py-2 rounded">🔍 Rechercher</button>
+      </form>
+    </section>
+
+    <!-- Liste des ressources -->
+    <section class="bg-white rounded-lg shadow p-6 space-y-4">
+      <h2 class="text-xl font-semibold">📚 Résultats</h2>
+      <div id="ressourceList" class="space-y-4"></div>
+    </section>
+
+    <!-- Résultat technique -->
+    <pre id="result" class="bg-gray-100 text-gray-700 text-xs p-2 rounded border overflow-x-auto"></pre>
   </div>
 
   <script>
+    const tagInput = document.getElementById('tagInput');
+    const tagSuggestions = document.getElementById('tagSuggestions');
+    const tagPills = document.getElementById('tagPills');
+    const tagsHidden = document.getElementById('tagsHidden');
+    let selectedTags = [];
+
+    tagInput.addEventListener('input', async () => {
+      const q = tagInput.value.trim();
+      if (q === "") {
+        tagSuggestions.innerHTML = "";
+        tagSuggestions.classList.add("hidden");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/tags/search?q=${encodeURIComponent(q)}`);
+        const tags = await res.json();
+        tagSuggestions.innerHTML = "";
+        tags.forEach(tag => {
+          if (selectedTags.includes(tag)) return;
+          const li = document.createElement('li');
+          li.className = "px-3 py-1 hover:bg-gray-200 cursor-pointer";
+          li.textContent = tag;
+          li.onclick = () => addTag(tag);
+          tagSuggestions.appendChild(li);
+        });
+        tagSuggestions.classList.remove("hidden");
+      } catch (e) {
+        console.error("Erreur suggestions tags:", e);
+      }
+    });
+
+    tagInput.addEventListener('blur', () => {
+      setTimeout(() => tagSuggestions.classList.add("hidden"), 200);
+    });
+
+    function addTag(tag) {
+      if (selectedTags.length >= 5 || selectedTags.includes(tag)) return;
+      selectedTags.push(tag);
+      renderTagPills();
+      tagInput.value = "";
+      tagSuggestions.innerHTML = "";
+      tagSuggestions.classList.add("hidden");
+    }
+
+    function removeTag(tag) {
+      selectedTags = selectedTags.filter(t => t !== tag);
+      renderTagPills();
+    }
+
+    function renderTagPills() {
+      tagPills.innerHTML = "";
+      selectedTags.forEach(tag => {
+        const pill = document.createElement('span');
+        pill.className = "bg-gray-200 text-sm px-2 py-1 rounded-full flex items-center gap-1";
+        pill.innerHTML = `${tag} <button class="ml-1 text-red-600" onclick="removeTag('${tag}')">&times;</button>`;
+        tagPills.appendChild(pill);
+      });
+      tagsHidden.value = selectedTags.join(',');
+    }
+
+
+    const tabGeneral = document.getElementById('tabGeneral');
+    const tabMyUploads = document.getElementById('tabMyUploads');
+    const recommendedTags = document.getElementById('recommendedTags');
+
+    function highlightTab(active) {
+      tabGeneral.classList.toggle('text-blue-600', active === 'general');
+      tabMyUploads.classList.toggle('text-blue-600', active === 'my');
+      tabGeneral.classList.toggle('border-b-2', active === 'general');
+      tabMyUploads.classList.toggle('border-b-2', active === 'my');
+      tabGeneral.classList.toggle('border-blue-600', active === 'general');
+      tabMyUploads.classList.toggle('border-blue-600', active === 'my');
+    }
+
+    tabGeneral.addEventListener('click', () => {
+      highlightTab('general');
+      document.getElementById('searchUploader').value = "";
+      loadRessources();
+    });
+
+    tabMyUploads.addEventListener('click', async () => {
+      highlightTab('my');
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      document.getElementById('searchUploader').value = payload.username;
+      loadRessources({ uploader: payload.username });
+    });
+
+    async function loadRecommendedTags() {
+      try {
+        const res = await fetch('/tags');
+        const tags = await res.json();
+        recommendedTags.innerHTML = '';
+        tags.forEach(tag => {
+          const el = document.createElement('span');
+          el.className = 'px-3 py-1 bg-gray-200 rounded-full cursor-pointer hover:bg-gray-300';
+          el.textContent = `#${tag}`;
+          el.onclick = () => {
+            document.getElementById('searchTag').value = tag;
+            document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+          };
+          recommendedTags.appendChild(el);
+        });
+      } catch (e) {
+        console.error("Erreur chargement tags:", e);
+      }
+    }
+
     const result = document.getElementById('result');
     const ressourceList = document.getElementById('ressourceList');
 
@@ -51,13 +207,20 @@
       return token;
     }
 
-    async function loadRessources() {
+    function renderAudioIfPossible(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      if (["mp3", "wav", "ogg", "flac"].includes(ext)) {
+        return `<audio controls class="mt-2 w-full"><source src="/shared_ressources/${encodeURIComponent(filename)}" type="audio/${ext}">Votre navigateur ne supporte pas l'audio.</audio>`;
+      }
+      return '';
+    }
+
+    async function loadRessources(filters = {}) {
       try {
         const token = await getValidToken();
-        const res = await fetch('/shared_ressources', {
-          headers: {
-            'Authorization': 'Bearer ' + token
-          }
+        const params = new URLSearchParams(filters);
+        const res = await fetch(`/shared_ressources/search?${params}`, {
+          headers: { 'Authorization': 'Bearer ' + token }
         });
 
         if (!res.ok) {
@@ -69,26 +232,26 @@
         ressourceList.innerHTML = '';
 
         ressources.forEach(ressource => {
-          const item = document.createElement('div');
-          item.className = "border p-3 rounded bg-gray-50";
+          const tagsDisplay = ressource.tags.length > 0 ? ressource.tags.map(t => `<span class='bg-gray-200 rounded px-2 py-1 text-xs'>#${t}</span>`).join(' ') : "";
 
+          const item = document.createElement('div');
+          item.className = "border p-4 rounded bg-gray-50 space-y-1";
           item.innerHTML = `
-            <div class="font-semibold">${ressource.title}</div>
-            <div class="text-sm text-gray-600">${ressource.type} — ${ressource.filename}</div>
+            <div class="text-xl font-bold">${ressource.title}</div>
+            <div class="text-sm text-gray-700">👤 <strong>${ressource.uploader_username || 'Anonyme'}</strong> | 📁 ${ressource.type} | ⏱ ${new Date(ressource.uploaded_at).toLocaleString()}</div>
+            <div class="text-sm text-gray-600 italic">${ressource.filename} | ⬇️ ${ressource.download_count || 0} téléchargement(s)</div>
+            <div class="flex gap-2 mt-1 flex-wrap">${tagsDisplay}</div>
             <div class="flex gap-4 mt-2">
-              <a href="/shared_ressources/${encodeURIComponent(ressource.filename)}" target="_blank" class="text-blue-600 hover:underline">
-                👁️ Visualiser
-              </a>
-              <a href="/shared_ressources/${encodeURIComponent(ressource.filename)}" download class="text-green-600 hover:underline">
-                ⬇️ Télécharger
-              </a>
+              <a href="/shared_ressources/${encodeURIComponent(ressource.filename)}" target="_blank" class="text-blue-600 hover:underline">👁️ Visualiser</a>
+              <a href="/shared_ressources/${encodeURIComponent(ressource.filename)}?download=true" download class="text-green-600 hover:underline">⬇️ Télécharger</a>
             </div>
+            ${renderAudioIfPossible(ressource.filename)}
           `;
 
           ressourceList.appendChild(item);
         });
       } catch (err) {
-        console.error("Erreur loadRessources :", err);
+        console.error("Erreur JS loadRessources:", err);
       }
     }
 
@@ -101,9 +264,7 @@
         const token = await getValidToken();
         const res = await fetch('/shared_ressources', {
           method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + token
-          },
+          headers: { 'Authorization': 'Bearer ' + token },
           body: formData
         });
 
@@ -125,49 +286,11 @@
       const tag = document.getElementById('searchTag').value;
       const type = document.getElementById('searchType').value;
       const title = document.getElementById('searchTitle').value;
-
-      try {
-        const res = await fetch(`/shared_ressources/search?tag=${encodeURIComponent(tag)}&type=${encodeURIComponent(type)}&title=${encodeURIComponent(title)}`, {
-          headers: { 'Authorization': 'Bearer ' + await getValidToken() }
-        });
-
-        if (!res.ok) {
-          result.textContent = "❌ Erreur recherche : " + res.status;
-          return;
-        }
-
-        const ressources = await res.json();
-        ressourceList.innerHTML = '';
-
-        ressources.forEach(ressource => {
-          const item = document.createElement('div');
-          item.className = "border p-3 rounded bg-gray-50";
-
-          item.innerHTML = `
-            <div class="font-semibold">${ressource.title}</div>
-            <div class="text-sm text-gray-600">${ressource.type} — ${ressource.filename}</div>
-            <div class="flex gap-4 mt-2">
-              <a href="/shared_ressources/${encodeURIComponent(ressource.filename)}" target="_blank" class="text-blue-600 hover:underline">
-                👁️ Visualiser
-              </a>
-              <a href="/shared_ressources/${encodeURIComponent(ressource.filename)}?download=true" download class="text-green-600 hover:underline">
-                ⬇️ Télécharger
-              </a>
-            </div>
-          `;
-
-          ressourceList.appendChild(item);
-        });
-      } catch (err) {
-        console.error("❌ Erreur JS recherche :", err);
-      }
+      const uploader = document.getElementById('searchUploader').value;
+      await loadRessources({ tag, type, title, uploader });
     });
 
-    const predefinedTags = [
-      "hiphop", "trap", "ambient", "drum", "bass", "techno", "house",
-      "lofi", "synth", "vocal", "fx", "kick", "808", "snare", "melodic"
-    ];
-
+    const predefinedTags = ["hiphop", "trap", "ambient", "drum", "bass", "techno", "house", "lofi", "synth", "vocal", "fx", "kick", "808", "snare", "melodic"];
     function updateTagSuggestions() {
       const datalist = document.getElementById('tagSuggestions');
       datalist.innerHTML = '';
@@ -180,9 +303,9 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       updateTagSuggestions();
+      loadRecommendedTags();
       loadRessources();
     });
-
   </script>
 </body>
 </html>
