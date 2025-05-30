@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Ressources partagées — Talas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-6 font-sans bg-gray-100">
+  <div class="max-w-3xl mx-auto bg-white shadow p-6 rounded space-y-4">
+    <h1 class="text-2xl font-bold mb-4">📁 Ressources partagées</h1>
+
+    <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
+      <input type="text" name="title" placeholder="Titre de la ressource" required class="w-full border p-2 rounded" />
+      <input type="text" name="type" placeholder="Type (sample, preset, etc.)" required class="w-full border p-2 rounded" />
+      <input type="file" name="file" required class="w-full border p-2 rounded" />
+      
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Partager</button>
+    </form>
+
+    <pre id="result" class="bg-gray-50 border p-2 text-sm mt-4 overflow-x-auto"></pre>
+
+    <h2 class="text-xl font-semibold mt-6">📚 Fichiers disponibles</h2>
+    <div id="ressourceList" class="space-y-4 mt-2"></div>
+  </div>
+
+  <script>
+    const result = document.getElementById('result');
+    const ressourceList = document.getElementById('ressourceList');
+
+    async function getValidToken() {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        result.textContent = "❌ Token d’authentification manquant.";
+        throw new Error("Token manquant");
+      }
+      return token;
+    }
+
+    async function loadRessources() {
+      try {
+        const token = await getValidToken();
+        const res = await fetch('/shared', {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (!res.ok) {
+          result.textContent = "❌ Erreur chargement (" + res.status + ")";
+          return;
+        }
+
+        const ressources = await res.json();
+        ressourceList.innerHTML = '';
+
+        ressources.forEach(ressource => {
+          const item = document.createElement('div');
+          item.className = "border p-3 rounded bg-gray-50";
+
+          item.innerHTML = `
+            <div class="font-semibold">${ressource.title}</div>
+            <div class="text-sm text-gray-600">${ressource.type} — ${ressource.filename}</div>
+            <a href="/shared/${ressource.id}" class="text-blue-600 hover:underline mt-2 inline-block">
+              ⬇️ Télécharger
+            </a>
+          `;
+
+          ressourceList.appendChild(item);
+        });
+      } catch (err) {
+        console.error("Erreur loadRessources :", err);
+      }
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+
+      try {
+        const token = await getValidToken();
+        const res = await fetch('/shared', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token
+          },
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          result.textContent = "✅ Ressource partagée : " + data.title;
+          form.reset();
+          await loadRessources();
+        } else {
+          result.textContent = "❌ Erreur : " + res.status + " — " + await res.text();
+        }
+      } catch (err) {
+        console.error("Erreur upload:", err);
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', loadRessources);
+  </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!-- file: frontend/login.html -->
+
+<!DOCTYPE html>
+<html lang="fr" x-data="{ email: '', password: '', message: '' }">
+<head>
+  <meta charset="UTF-8" />
+  <title>Connexion - Talas</title>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-6 text-center">🔐 Connexion</h1>
+
+    <form @submit.prevent="
+      fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      .then(res => res.ok ? res.json() : Promise.reject(res))
+      .then(data => {
+        localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        message = '✅ Connexion réussie';
+        window.location.href = '/dashboard.html';
+      })
+      .catch(() => message = '❌ Identifiants incorrects ou serveur indisponible');
+    " class="space-y-4">
+      <input type="email" x-model="email" placeholder="Email" required class="w-full border rounded px-4 py-2" />
+      <input type="password" x-model="password" placeholder="Mot de passe" required class="w-full border rounded px-4 py-2" />
+
+      <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+        Se connecter
+      </button>
+    </form>
+
+    <p class="text-center text-sm mt-4 text-gray-600">
+      Pas encore de compte ?
+      <a href="/register.html" class="text-green-600 hover:underline">Créer un compte</a>
+    </p>
+
+    <p x-text="message" class="text-center text-red-600 mt-4"></p>
+  </div>
+</body>
+</html>

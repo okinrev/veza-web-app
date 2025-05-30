@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Messages Privés - Talas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="p-6 bg-gray-100 font-sans">
+  <div x-data="dmChat()" x-init="init()" class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">Discussion Privée</h1>
+
+    <div class="bg-white shadow p-4 rounded">
+      <h2 class="text-lg font-semibold mb-2">Avec l'utilisateur <span x-text="otherUserId"></span></h2>
+
+      <div class="h-64 overflow-y-auto border mb-2 p-2 flex flex-col space-y-1" x-ref="log">
+        <template x-for="(msg, index) in messages" :key="index">
+          <div :class="msg.fromUser === myUserId ? 'text-right ml-auto bg-blue-100 text-blue-900 px-2 py-1 rounded max-w-xs' : 'text-left mr-auto bg-gray-200 text-gray-800 px-2 py-1 rounded max-w-xs'">
+            <span class="block text-sm" x-text="msg.content"></span>
+            <span class="text-xs text-gray-500 block mt-0.5" x-text="new Date(msg.timestamp).toLocaleTimeString()"></span>
+          </div>
+        </template>
+      </div>
+
+      <form @submit.prevent="envoyerMessage" class="flex gap-2">
+        <input x-model="contenu" type="text" placeholder="Votre message..." class="flex-1 border p-2 rounded" :disabled="!socket">
+        <button class="bg-blue-600 text-white px-4 rounded" :disabled="!contenu.trim()">Envoyer</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function dmChat() {
+      return {
+        myUserId: null,
+        otherUserId: parseInt(new URLSearchParams(window.location.search).get("user_id")),
+        messages: [],
+        contenu: '',
+        socket: null,
+        logEl: null,
+
+        async init() {
+          const token = localStorage.getItem('access_token');
+          if (!token || isNaN(this.otherUserId)) return alert("Erreur : token manquant ou ID absent.");
+
+          // On récupère mon ID
+          const me = await fetch("/me", { headers: { Authorization: "Bearer " + token } });
+          const data = await me.json();
+          this.myUserId = data.id;
+
+          if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            this.socket.close(); // ou return;
+            this.socket = null;
+          }
+
+          const socket = new WebSocket(`ws://localhost:9001/?token=${token}`);
+          this.socket = socket;  
+          socket.onopen = () => {
+            socket.send(JSON.stringify({
+              type: "dm_history",
+              with: this.otherUserId,
+              limit: 50
+            }));
+          };
+
+          socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log("📥 WS reçu :", data);
+    
+            if (data.type === "dm" && (data.data?.fromUser === this.otherUserId || data.data?.to === this.otherUserId)) {
+              this.messages.push(data.data);
+              this.scrollToBottom();
+    
+            } else if (Array.isArray(data)) {
+              this.messages = data
+              .filter(msg => msg.content)  // sécurité
+              .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+              this.scrollToBottom();
+    
+            } else if (data.type === "dm_sent") {
+              // OK, message bien envoyé — on ignore ou loggue si besoin
+              console.info("✅ Message DM envoyé :", data.data);
+            } else if (!data.type && data.content && data.timestamp) {
+              // 🔧 Cas historique renvoyé comme messages unitaires non typés
+              this.messages.push(data);
+              this.scrollToBottom();
+    
+            } else {
+                console.warn("🟡 Message inattendu :", data);
+            }
+          };
+
+
+        },
+
+        envoyerMessage() {
+          const msg = this.contenu.trim();
+          if (!msg || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+
+          const outgoingMessage = {
+            fromUser: this.myUserId,
+            to: this.otherUserId,
+            content: msg,
+            timestamp: new Date().toISOString(),
+            username: 'Moi'
+          };
+
+          this.socket.send(JSON.stringify({
+            type: "dm",
+            to: this.otherUserId,
+            content: msg
+          }));
+
+          this.messages.push(outgoingMessage); // ← on ajoute localement le message
+          this.scrollToBottom();
+          this.contenu = '';
+        },
+
+        scrollToBottom() {
+          setTimeout(() => {
+            if (this.$refs.log) {
+              this.$refs.log.scrollTop = this.$refs.log.scrollHeight;
+            }
+          }, 0);
+        }
+      };
+    }
+  </script>
+</body>
+</html>

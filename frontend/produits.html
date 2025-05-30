@@ -1,0 +1,73 @@
+<!-- file: frontend/produits.html -->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Produits Talas</title>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-8 font-sans text-gray-800" x-data="produitsApp()" x-init="chargerProduits()">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6 text-center">🎛️ Produits enregistrés</h1>
+
+    <!-- 💬 Message -->
+    <template x-if="message">
+      <div class="mb-4 p-3 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded" x-text="message"></div>
+    </template>
+
+    <!-- ➕ Formulaire -->
+    <form @submit.prevent="enregistrerProduit" class="bg-white shadow p-6 rounded-lg mb-8 space-y-4">
+      <h2 class="text-xl font-semibold" x-text="form.id ? 'Modifier le produit' : 'Ajouter un produit'"></h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <input type="text" placeholder="Nom" x-model="form.name" required class="border p-2 rounded w-full" />
+        <input type="text" placeholder="Version" x-model="form.version" required class="border p-2 rounded w-full" />
+        <input type="date" x-model="form.purchase_date" required class="border p-2 rounded w-full" />
+        <input type="date" x-model="form.warranty_expires" required class="border p-2 rounded w-full" />
+      </div>
+
+      <div class="flex items-center space-x-4 mt-4">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          Enregistrer
+        </button>
+        <button type="button" @click="resetForm()" x-show="form.id" class="text-sm text-gray-600 underline">
+          Annuler
+        </button>
+      </div>
+    </form>
+
+    <!-- 📋 Liste des produits -->
+    <div class="bg-white shadow overflow-hidden rounded-lg">
+      <table class="min-w-full table-auto text-sm">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="px-4 py-2 text-left font-semibold">Nom</th>
+            <th class="px-4 py-2 text-left font-semibold">Version</th>
+            <th class="px-4 py-2 text-left font-semibold">Achat</th>
+            <th class="px-4 py-2 text-left font-semibold">Fin garantie</th>
+            <th class="px-4 py-2 text-left font-semibold">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="p in produits" :key="p.id">
+            <tr class="border-b hover:bg-gray-50">
+              <td class="px-4 py-2" x-text="p.name"></td>
+              <td class="px-4 py-2" x-text="p.version"></td>
+              <td class="px-4 py-2" x-text="formatDate(p.purchase_date)"></td>
+              <td class="px-4 py-2" x-text="formatDate(p.warranty_expires)"></td>
+              <td class="px-4 py-2">
+                <button @click="remplirFormulaire(p)" class="text-blue-600 hover:underline mr-2">✏️</button>
+                <button @click="supprimerProduit(p.id)" class="text-red-600 hover:underline">🗑️</button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="js/produits.js"></script>
+</body>
+</html>

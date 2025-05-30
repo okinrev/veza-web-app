@@ -1,0 +1,48 @@
+<!-- file: frontend/room.html -->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Salons - Talas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="p-6 font-sans bg-gray-50">
+  <div x-data>
+    <h1 class="text-2xl font-bold mb-4">Salons Publics</h1>
+
+    <div class="flex gap-4 max-w-5xl">
+      <!-- Liste des salons -->
+      <div class="w-1/4 bg-white shadow p-4 rounded">
+        <h2 class="text-lg font-semibold mb-2">Salons</h2>
+        <template x-for="r in $store.roomChat.rooms" :key="r.id">
+          <button @click="$store.roomChat.rejoindre(r.name)" class="block w-full text-left p-2 hover:bg-gray-100 rounded" x-text="r.name"></button>
+        </template>
+      </div>
+
+      <!-- Zone de discussion -->
+      <div class="flex-1 bg-white shadow p-4 rounded">
+        <h2 class="text-lg font-semibold mb-2" x-text="$store.roomChat.roomActuelle ? `Salon : ${$store.roomChat.roomActuelle}` : 'Sélectionnez un salon'"></h2>
+
+        <div class="h-64 overflow-y-auto border mb-2 p-2" x-ref="log">
+          <template x-for="(msg, index) in $store.roomChat.messages" :key="index">
+            <div class="text-sm mb-1">
+              <span class="font-semibold" x-text="msg.username || ('User #' + msg.fromUser)"></span> :
+              <span class="text-xs text-gray-400" x-text="new Date(msg.timestamp).toLocaleTimeString()"></span>
+              <span x-text="msg.content"></span>
+            </div>
+          </template>
+        </div>
+
+        <form @submit.prevent="$store.roomChat.envoyerMessage()" class="flex gap-2">
+          <input x-model="$store.roomChat.contenu" type="text" placeholder="Message..." class="flex-1 border p-2 rounded" :disabled="!$store.roomChat.roomActuelle">
+          <button class="bg-blue-600 text-white px-4 rounded" :disabled="!$store.roomChat.roomActuelle">Envoyer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/room.js"></script>
+</body>
+</html>

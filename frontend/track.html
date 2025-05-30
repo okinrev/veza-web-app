@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Uploader une piste - Talas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-6 font-sans bg-gray-100">
+  <div class="max-w-xl mx-auto bg-white shadow p-6 rounded space-y-4">
+    <h1 class="text-2xl font-bold mb-4">🎵 Ajouter une piste</h1>
+
+    <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
+      <input type="text" name="title" placeholder="Titre de la piste" required class="w-full border p-2 rounded" />
+      <input type="text" name="artist" placeholder="Nom de l’artiste" required class="w-full border p-2 rounded" />
+      <input type="text" name="tags" placeholder="Tags séparés par des virgules" class="w-full border p-2 rounded" />
+      <input type="file" name="audio" accept="audio/*" required class="w-full border p-2 rounded" />
+      
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Envoyer</button>
+    </form>
+
+    <pre id="result" class="bg-gray-50 border p-2 text-sm mt-4 overflow-x-auto"></pre>
+
+    <h2 class="text-xl font-semibold mt-6">📂 Pistes disponibles</h2>
+    <div id="trackList" class="space-y-4 mt-2"></div>
+  </div>
+
+  <script>
+    const result = document.getElementById('result');
+    const trackList = document.getElementById('trackList');
+
+    async function getValidToken() {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        result.textContent = "❌ Token d’authentification manquant. Veuillez vous connecter.";
+        throw new Error("Token manquant");
+      }
+      return token;
+    }
+
+    async function loadTracks() {
+      try {
+        const token = await getValidToken();
+        const res = await fetch('/tracks', {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (!res.ok) {
+          result.textContent = "❌ Impossible de charger les pistes (" + res.status + ")";
+          return;
+        }
+
+        const tracks = await res.json();
+        console.log("Tracks →", tracks);
+        trackList.innerHTML = '';
+
+        tracks.forEach(track => {
+          const item = document.createElement('div');
+          item.className = "border p-3 rounded bg-gray-50";
+
+          const playerId = `player-${track.id}`;
+          item.innerHTML = `
+            <div class="font-semibold">${track.title} — ${track.artist}</div>
+            <audio id="${playerId}" controls class="w-full mt-2 hidden">
+              <source type="audio/mpeg">
+              Votre navigateur ne supporte pas l'audio HTML5.
+            </audio>
+            <button class="bg-green-600 text-white px-3 py-1 mt-2 rounded" data-filename="${track.filename}">
+              🎧 Lire via lien sécurisé
+            </button>
+          `;
+
+          const button = item.querySelector('button');
+          const audio = item.querySelector('audio');
+          const source = audio.querySelector('source');
+
+          button.addEventListener('click', async () => {
+            try {
+              const token = await getValidToken();
+              const filename = button.getAttribute('data-filename');
+              const url = `/generate-stream-url?filename=${encodeURIComponent(filename)}`;
+
+              const res = await fetch(url, {
+                headers: {
+                  'Authorization': 'Bearer ' + token
+                }
+              });
+
+              if (!res.ok) {
+                result.textContent = "❌ Erreur lien signé (" + res.status + ")";
+                return;
+              }
+
+              const data = await res.json();
+              if (!data.url) {
+                result.textContent = "❌ Lien manquant dans la réponse.";
+                return;
+              }
+
+              source.src = data.url;
+              audio.load();
+              audio.classList.remove("hidden");
+              await audio.play();
+            } catch (err) {
+              console.error("Erreur lecture lien sécurisé :", err);
+              result.textContent = "❌ Erreur lecture audio : " + err.message;
+            }
+          });
+
+          trackList.appendChild(item);
+        });
+      } catch (err) {
+        console.error("Erreur loadTracks :", err);
+      }
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+
+      try {
+        const token = await getValidToken();
+        const res = await fetch('/tracks', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token
+          },
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          result.textContent = "✅ Piste ajoutée : " + data.title;
+          form.reset();
+          await loadTracks();
+        } else {
+          result.textContent = "❌ Erreur : " + res.status + " — " + await res.text();
+        }
+      } catch (err) {
+        console.error("Erreur upload:", err);
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', loadTracks);
+  </script>
+</body>
+</html>
