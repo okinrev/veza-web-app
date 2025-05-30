@@ -7,6 +7,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"log"
+	"fmt"
+	"mime"
 	"path/filepath"
 	"strings"
 	"time"
@@ -50,8 +53,8 @@ func UploadSharedResource(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	filename := filepath.Base(handler.Filename)
-	savePath := filepath.Join("shared", filename)
-	os.MkdirAll("shared", os.ModePerm)
+	savePath := filepath.Join("shared_ressources", filename)
+	os.MkdirAll("shared_ressources", os.ModePerm)
 	out, err := os.Create(savePath)
 	if err != nil {
 		http.Error(w, "cannot save file", http.StatusInternalServerError)
@@ -60,9 +63,9 @@ func UploadSharedResource(w http.ResponseWriter, r *http.Request) {
 	defer out.Close()
 	io.Copy(out, file)
 
-	url := "/shared/" + filename
+	url := "/shared_ressources/" + filename
 	_, err = db.DB.Exec(`
-		INSERT INTO shared_resources (title, filename, url, type, tags, uploader_id, is_public, uploaded_at)
+		INSERT INTO shared_ressources (title, filename, url, type, tags, uploader_id, is_public, uploaded_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`, title, filename, url, typeStr, pq.Array(tags), uploaderID, true, time.Now())
 	if err != nil {
@@ -81,10 +84,11 @@ func UploadSharedResource(w http.ResponseWriter, r *http.Request) {
 func ListSharedResources(w http.ResponseWriter, r *http.Request) {
 	var resources []models.SharedResource
 	err := db.DB.Select(&resources, `
-		SELECT * FROM shared_resources
+		SELECT * FROM shared_ressources
 		WHERE is_public = true
 		ORDER BY uploaded_at DESC`)
 	if err != nil {
+		log.Printf("❌ Erreur requête SELECT shared_ressources: %v", err) // <== ajoute ce log
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}
@@ -93,10 +97,63 @@ func ListSharedResources(w http.ResponseWriter, r *http.Request) {
 
 func ServeSharedFile(w http.ResponseWriter, r *http.Request) {
 	filename := filepath.Base(r.URL.Path)
-	path := filepath.Join("shared", filename)
+	path := filepath.Join("shared_ressources", filename)
+	
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		http.NotFound(w, r)
 		return
 	}
+	
+	if r.URL.Query().Get("download") == "true" {
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+		// 🔐 Force le bon type MIME
+		ext := filepath.Ext(filename)
+		mimeType := mime.TypeByExtension(ext)
+		if mimeType != "" {
+			w.Header().Set("Content-Type", mimeType)
+		} else {
+			w.Header().Set("Content-Type", "application/octet-stream")
+		}
+	}
+
 	http.ServeFile(w, r, path)
+}
+
+func SearchSharedResources(w http.ResponseWriter, r *http.Request) {
+	tag := r.URL.Query().Get("tag")
+	resType := r.URL.Query().Get("type")
+	title := r.URL.Query().Get("title")
+
+	query := `SELECT * FROM shared_ressources WHERE is_public = true`
+	args := []interface{}{}
+	i := 1
+
+	if tag != "" {
+		query += fmt.Sprintf(" AND $%d = ANY(tags)", i)
+		args = append(args, tag)
+		i++
+	}
+	if resType != "" {
+		query += fmt.Sprintf(" AND LOWER(type) = LOWER($%d)", i)
+		args = append(args, resType)
+		i++
+	}
+	if title != "" {
+		query += fmt.Sprintf(" AND LOWER(title) ILIKE LOWER($%d)", i)
+		args = append(args, "%"+title+"%")
+		i++
+	}
+
+	query += " ORDER BY uploaded_at DESC"
+
+	var ressources []models.SharedResource
+	err := db.DB.Select(&ressources, query, args...)
+	if err != nil {
+		log.Printf("❌ Erreur recherche: %v", err)
+		http.Error(w, "Erreur base de données", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(ressources)
 }

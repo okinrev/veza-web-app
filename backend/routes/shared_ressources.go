@@ -9,10 +9,12 @@ import (
 )
 
 func RegisterSharedRoutes(r *mux.Router) {
-	protected := r.PathPrefix("/shared").Subrouter()
+	protected := r.PathPrefix("/shared_ressources").Subrouter()
 	protected.Use(middleware.JWTAuthMiddleware)
 
 	protected.HandleFunc("", handlers.UploadSharedResource).Methods("POST")
 	protected.HandleFunc("", handlers.ListSharedResources).Methods("GET")
-	r.HandleFunc("/shared/{filename}", handlers.ServeSharedFile).Methods("GET")
+	r.HandleFunc("/shared_ressources/search", handlers.SearchSharedResources).Methods("GET")
+	r.HandleFunc("/shared_ressources/{filename}", handlers.ServeSharedFile).Methods("GET")
+
 }

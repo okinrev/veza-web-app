@@ -1,6 +1,6 @@
 --file: backend/db/migrations/shared_ressources.sql
 
-CREATE TABLE IF NOT EXISTS shared_resources (
+CREATE TABLE IF NOT EXISTS shared_ressources (
   id SERIAL PRIMARY KEY,
   title TEXT NOT NULL,
   filename TEXT NOT NULL,
