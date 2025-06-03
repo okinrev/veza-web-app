@@ -631,6 +631,55 @@
                             notes: "Idéal pour identifier les sujets ou catégories tendances."
                         },
                     ],
+                    "🏷️ Listings & Offers": [
+                        { 
+                            method: "POST", 
+                            path: "/listings", 
+                            description: "Fournit des suggestions basées sur une requête, utile pour l'autocomplétion ou la découverte de contenu.", 
+                            notes: "Le paramètre de requête peut être `tag`, `title`, `uploader`, `doc`, `user`, ou `track` pour des suggestions filtrées.",
+                            parameters: [
+                                { name: "tag", type: "string", required: false, description: "Recherche de tags" },
+                                { name: "title", type: "string", required: false, description: "Recherche de titres" },
+                                { name: "user", type: "string", required: false, description: "Recherche d'utilisateurs" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/listings", 
+                            description: "Récupère une liste de tous les tags existants sur la plateforme, utilisés pour categoriser les pistes, ressources, etc.", 
+                            notes: "Utilisé pour afficher toutes les options de tags disponibles pour la recherche ou le filtrage."
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/listings/{id:[0-9]+}", 
+                            description: "Recherche des tags spécifiques en fonction d'une chaîne de caractères. Utile pour filtrer les tags ou trouver des correspondances exactes/partielles.", 
+                            notes: "Le paramètre de requête `q` est utilisé pour la recherche de tags.",
+                            parameters: [
+                                { name: "q", type: "string", required: true, description: "Terme de recherche" }
+                            ]
+                        },
+                        { 
+                            method: "DELETE", 
+                            path: "/listings/{id:[0-9]+}", 
+                            description: "Récupère une liste des tags les plus fréquemment utilisés ou les plus populaires sur la plateforme, classés par pertinence ou nombre d'occurrences.", 
+                            notes: "Idéal pour identifier les sujets ou catégories tendances."
+                        },
+                        { 
+                            method: "POST", 
+                            path: "/listings/{id:[0-9]+}/offer", 
+                            description: "Recherche des tags spécifiques en fonction d'une chaîne de caractères. Utile pour filtrer les tags ou trouver des correspondances exactes/partielles.", 
+                            notes: "Le paramètre de requête `q` est utilisé pour la recherche de tags.",
+                            parameters: [
+                                { name: "q", type: "string", required: true, description: "Terme de recherche" }
+                            ]
+                        },
+                        { 
+                            method: "POST", 
+                            path: "/offers/{id:[0-9]+}/accept", 
+                            description: "Récupère une liste des tags les plus fréquemment utilisés ou les plus populaires sur la plateforme, classés par pertinence ou nombre d'occurrences.", 
+                            notes: "Idéal pour identifier les sujets ou catégories tendances."
+                        },
+                    ],
                     "💬 Chat & WebSockets": [
                         { 
                             method: "WEBSOCKET", 
