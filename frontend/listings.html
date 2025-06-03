@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="fr" class="bg-gray-50 text-gray-800">
+<head>
+  <meta charset="UTF-8" />
+  <title>♻️ Talas — Plateforme de Troc</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="font-sans" x-data="listingApp()" x-init="init()">
+  <div class="max-w-7xl mx-auto p-6 space-y-8">
+    <header class="flex items-center justify-between bg-white rounded-lg shadow p-6">
+      <div class="flex items-center gap-4">
+        <button @click="goBack()" class="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+        </button>
+        <h1 class="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">
+          ♻️ Talas — Plateforme de Troc
+        </h1>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="text-sm text-gray-600">👤 Utilisateur connecté: #<span x-text="currentUserId"></span></span>
+      </div>
+    </header>
+
+    <div class="bg-white p-4 rounded-lg shadow mb-6 flex flex-wrap gap-4 items-center">
+      <div class="relative flex-1 min-w-[200px]">
+        <input type="text" placeholder="🔎 Rechercher un mot-clé..." x-model="search" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-8">
+        <svg class="absolute left-2 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+      </div>
+      <select x-model="filterState" class="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        <option value="">Tous les états</option>
+        <option value="neuf">Neuf</option>
+        <option value="bon">Bon</option>
+        <option value="usé">Usé</option>
+      </select>
+      <button class="ml-auto bg-gray-100 text-gray-700 hover:bg-gray-200 px-4 py-2 rounded-md transition-colors font-medium text-sm" @click="resetFilters">Réinitialiser</button>
+    </div>
+
+    <form @submit.prevent="submitListing" class="bg-white p-6 rounded-lg shadow mb-8 space-y-4">
+      <h2 class="text-xl font-semibold text-gray-800 mb-2">➕ Nouvelle Annonce</h2>
+
+      <input type="number" placeholder="ID Utilisateur" x-model="form.user_id" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-100 cursor-not-allowed" disabled>
+
+      <select x-model="form.product_id" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+        <option value="" disabled selected>Sélectionnez un produit</option>
+        <template x-for="product in productsList" :key="product">
+          <option :value="product" x-text="product"></option>
+        </template>
+      </select>
+
+      <select x-model="form.state" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+        <option value="" disabled selected>État du produit</option>
+        <option value="neuf">Neuf</option>
+        <option value="bon">Bon</option>
+        <option value="usé">Usé</option>
+      </select>
+      <textarea placeholder="Description de l'annonce (ex: 'Roman policier en excellent état')" x-model="form.description" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y min-h-[80px]" required></textarea>
+      <input type="number" placeholder="Prix (optionnel, en €)" x-model="form.price" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+      <input type="text" placeholder="Échange contre... (ex: 'un jeu vidéo', 'rien')" x-model="form.exchange_for" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Images du produit (max 3)</label>
+        <div class="flex flex-wrap gap-2 mb-2">
+          <template x-for="(img, i) in form.images" :key="i">
+            <div class="relative">
+              <img :src="img" class="w-20 h-20 object-cover rounded border" />
+              <button type="button" @click="removeImage(i)" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 text-xs">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+          </template>
+        </div>
+        <input type="file" @change="previewImages($event)" multiple accept="image/*" class="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+      </div>
+
+      <button
+        type="submit"
+        :disabled="sendingListing"
+        class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+      >
+        <span x-show="!sendingListing">Publier l'annonce</span>
+        <span x-show="sendingListing">Publication...</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </button>
+    </form>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <template x-for="listing in filteredListings" :key="listing.id">
+        <div class="bg-white p-5 rounded-lg shadow-md space-y-3">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold text-lg text-blue-700">
+              <span x-text="listing.product_id"></span>
+            </h3>
+            <span :class="{
+              'bg-green-100 text-green-800': listing.state === 'neuf',
+              'bg-yellow-100 text-yellow-800': listing.state === 'bon',
+              'bg-red-100 text-red-800': listing.state === 'usé'
+            }" class="px-2 py-0.5 rounded-full text-xs font-medium capitalize">
+              <span x-text="listing.state"></span>
+            </span>
+          </div>
+
+          <p class="text-sm text-gray-500">
+            Posté par: <span class="font-semibold" x-text="getUserPseudonym(listing.user_id)"></span>
+          </p>
+          
+          <p class="text-sm text-gray-700 line-clamp-3">
+            <span class="font-semibold">Description :</span> <span x-text="listing.description"></span>
+          </p>
+
+          <div class="flex items-center justify-between text-sm text-gray-600">
+            <p>
+              <span class="font-semibold">Prix :</span>
+              <span x-text="listing.price ? listing.price + ' €' : '—'"></span>
+            </p>
+            <p>
+              <span class="font-semibold">Échange contre :</span>
+              <span x-text="listing.exchange_for || '—'"></span>
+            </p>
+          </div>
+
+          <div x-show="listing.images && listing.images.length > 0" class="mt-3">
+            <img :src="listing.images[0]" class="w-full h-48 object-cover rounded-lg border border-gray-200 shadow-sm mb-2" />
+            <div class="flex flex-wrap gap-2">
+                <template x-for="(img, i) in listing.images.slice(1, 4)" :key="i">
+                    <img :src="img" class="w-20 h-20 object-cover rounded border border-gray-200 shadow-sm" />
+                </template>
+                <div x-show="listing.images.length > 4" class="w-20 h-20 bg-gray-200 text-gray-600 text-sm flex items-center justify-center rounded">
+                    +<span x-text="listing.images.length - 4"></span>
+                </div>
+            </div>
+          </div>
+          
+          <button
+            @click="makeOffer(listing.id, listing.user_id)"
+            :disabled="sendingOffer === listing.id"
+            class="mt-4 w-full bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center justify-center gap-2"
+          >
+            <span x-show="sendingOffer !== listing.id">Faire une offre</span>
+            <span x-show="sendingOffer === listing.id">Envoi de l'offre...</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </button>
+        </div>
+      </template>
+
+      <div x-show="filteredListings.length === 0" class="lg:col-span-3 flex items-center justify-center h-48 text-gray-500">
+        <div class="text-center">
+          <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+          </svg>
+          <p class="text-lg">Aucune annonce trouvée pour le moment.</p>
+          <p class="text-sm text-gray-400">Soyez le premier à publier !</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fixed bottom-4 right-4 space-y-2 z-50">
+    <template x-for="notification in notifications" :key="notification.id">
+      <div 
+        x-show="notification.show"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0 translate-y-4"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 translate-y-4"
+        :class="notification.type === 'success' ? 'bg-green-500' : notification.type === 'info' ? 'bg-blue-500' : 'bg-red-500'"
+        class="text-white px-6 py-3 rounded-lg shadow-lg max-w-sm"
+      >
+        <span x-text="notification.message"></span>
+      </div>
+    </template>
+  </div>
+
+  <script>
+    function listingApp() {
+      return {
+        listings: [],
+        search: '',
+        filterState: '',
+        sendingListing: false, // For listing creation form
+        sendingOffer: null,    // For offer submission, holds listing ID being offered
+        notifications: [],
+        currentUserId: 100, // Simuler un utilisateur connecté pour les offres et les créations d'annonces
+        productsList: ['Livre', 'Vélo', 'Console de jeu', 'Meuble', 'Vêtement', 'Électronique', 'Décoration', 'Jouet', 'Sport', 'Collection', 'Autres'], // Liste des produits disponibles
+        form: {
+          user_id: '', // Sera pré-rempli par currentUserId
+          product_id: '',
+          state: '',
+          description: '',
+          price: null,
+          exchange_for: '',
+          images: [],
+        },
+        
+        async init() {
+            console.log('Initialisation Plateforme de Troc...');
+            this.form.user_id = this.currentUserId; // Pré-remplir le user_id
+            await this.fetchListings();
+            console.log('Initialisation terminée');
+        },
+
+        goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                // Fallback if no history, maybe go to a default page or home
+                window.location.href = '/'; 
+            }
+        },
+
+        getUserPseudonym(userId) {
+            // Simple mapping for demonstration
+            if (userId === 1) return 'Alice';
+            if (userId === 2) return 'Bob';
+            if (userId === 3) return 'Charlie';
+            if (userId === this.currentUserId) return 'Vous (Actuel)'; // Indicate current user
+            return `Utilisateur #${userId}`;
+        },
+
+        get filteredListings() {
+          return this.listings.filter(l => {
+            const matchesSearch = !this.search || 
+                                  l.description.toLowerCase().includes(this.search.toLowerCase()) ||
+                                  l.product_id.toString().toLowerCase().includes(this.search.toLowerCase());
+
+            const matchesState = !this.filterState || l.state === this.filterState;
+            return matchesSearch && matchesState;
+          });
+        },
+
+        resetFilters() {
+          this.search = '';
+          this.filterState = '';
+          this.showNotification('Filtres réinitialisés', 'info');
+        },
+
+        fetchListings() {
+          fetch('/listings')
+            .then(res => res.json())
+            .then(data => {
+              this.listings = data;
+              this.showNotification('Annonces chargées', 'success');
+            })
+            .catch(err => {
+              console.error("❌ Erreur lors du chargement des annonces :", err);
+              this.showNotification('Erreur lors du chargement des annonces', 'error');
+            });
+        },
+
+        submitListing() {
+          const payload = {
+            user_id: Number(this.form.user_id),
+            product_id: this.form.product_id, // product_id as string/text
+            description: this.form.description,
+            state: this.form.state,
+            price: this.form.price ? Number(this.form.price) : null,
+            exchange_for: this.form.exchange_for || null,
+            images: this.form.images,
+          };
+
+          this.sendingListing = true;
+          fetch("/listings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          })
+          .then(async res => {
+            if (!res.ok) {
+              const err = await res.text();
+              throw new Error(err);
+            }
+            return res.json();
+          })
+          .then(data => {
+            this.listings.unshift(data); // Add new listing at the top
+            // Reset form but keep user_id pre-filled
+            this.form = { user_id: this.currentUserId, product_id: '', state: '', description: '', price: null, exchange_for: '', images: [] };
+            this.showNotification('Annonce publiée avec succès !', 'success');
+          })
+          .catch(err => {
+            console.error("❌ Erreur côté client :", err.message);
+            this.showNotification(`Erreur: ${err.message}`, 'error');
+          })
+          .finally(() => {
+            this.sendingListing = false;
+          });
+        },
+
+        makeOffer(listingId, ownerId) {
+            // Prevent making an offer on your own listing
+            if (this.currentUserId === ownerId) {
+                this.showNotification('Vous ne pouvez pas faire une offre sur votre propre annonce.', 'info');
+                return;
+            }
+
+            this.sendingOffer = listingId; // Set sending state for this specific listing
+            const offerPayload = {
+                listing_id: listingId,
+                offerer_id: this.currentUserId, // Automatically filled
+                message: `Bonjour, je suis intéressé par votre annonce #${listingId} !`, // Placeholder message
+            };
+
+            fetch(`/listings/${listingId}/offer`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(offerPayload)
+            })
+            .then(async res => {
+                if (!res.ok) {
+                    const err = await res.text();
+                    throw new Error(err);
+                }
+                return res.json();
+            })
+            .then(data => {
+                console.log("Offre envoyée :", data);
+                this.showNotification('Offre envoyée avec succès !', 'success');
+            })
+            .catch(err => {
+                console.error("❌ Erreur lors de l'envoi de l'offre :", err.message);
+                this.showNotification(`Erreur lors de l'envoi de l'offre: ${err.message}`, 'error');
+            })
+            .finally(() => {
+                this.sendingOffer = null; // Reset sending state
+            });
+        },
+
+        previewImages(event) {
+          const files = Array.from(event.target.files);
+          const maxImages = 3; // Limit to 3 images for the form upload
+          if (this.form.images.length + files.length > maxImages) {
+            this.showNotification(`Vous ne pouvez ajouter que ${maxImages} images à la fois.`, 'info');
+            return;
+          }
+
+          files.slice(0, maxImages - this.form.images.length).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              this.form.images.push(e.target.result);
+            };
+            reader.readAsDataURL(file);
+          });
+        },
+
+        removeImage(index) {
+            this.form.images.splice(index, 1);
+        },
+
+        showNotification(message, type = 'success') {
+            const id = Date.now();
+            const notification = {
+                id,
+                message,
+                type,
+                show: true
+            };
+            this.notifications.push(notification);
+
+            setTimeout(() => {
+                const index = this.notifications.findIndex(n => n.id === id);
+                if (index > -1) {
+                    this.notifications[index].show = false;
+                    setTimeout(() => {
+                        this.notifications = this.notifications.filter(n => n.id !== id);
+                    }, 300);
+                }
+            }, 3000);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
