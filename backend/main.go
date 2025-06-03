@@ -43,6 +43,9 @@ func main() {
 
 	routes.RegisterSuggestionRoutes(r)
 
+	routes.RegisterSearchRoutes(r, db.DB)
+
+
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("../frontend")))
 
 	log.Println("Serveur lancé sur :8080")
