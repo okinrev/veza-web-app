@@ -1,7 +1,7 @@
 .PHONY: build run test clean dev
 
 BINARY_NAME=veza-api
-BINARY_PATH=./cmd/api
+BINARY_PATH=./
 BUILD_DIR=./bin
 
 build:
