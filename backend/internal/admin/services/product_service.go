@@ -5,9 +5,9 @@ package services
 import (
 	"context"
 	"fmt"
-	"backend/internal/models/admin"
-	"backend/internal/admin/repository"
-	"backend/pkg/validator"
+	"veza-web-app/internal/models/admin"
+	"veza-web-app/internal/admin/repository"
+	"veza-web-app/pkg/validator"
 )
 
 type ProductService struct {

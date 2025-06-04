@@ -1,6 +1,6 @@
 //file: backend/utils/jwt.go
 
-package utils
+package auth
 
 import (
 	"time"

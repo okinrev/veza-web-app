@@ -4,8 +4,8 @@ package routes
 
 import (
 	"github.com/gorilla/mux"
-	"backend/handlers"
-	"backend/middleware"
+	"veza-web-app/handlers"
+	"veza-web-app/middleware"
 )
 
 func RegisterRessourceRoutes(r *mux.Router) {

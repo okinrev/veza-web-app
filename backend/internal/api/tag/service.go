@@ -4,7 +4,7 @@ package routes
 
 import (
 	"github.com/gorilla/mux"
-	"backend/handlers"
+	"veza-web-app/handlers"
 )
 
 func RegisterTagRoutes(r *mux.Router) {
