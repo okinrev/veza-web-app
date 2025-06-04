@@ -14,34 +14,34 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
-	"veza-web-app/internal/config"
-	"veza-web-app/internal/database"
+	"veza-web-app/backend/internal/config"
+	"veza-web-app/backend/internal/database"
 	
 	// Admin handlers
-	adminHandlers "veza-web-app/internal/admin/handlers"
-	adminServices "veza-web-app/internal/admin/services"
+	adminHandlers "veza-web-app/backend/internal/admin/handlers"
+	adminServices "veza-web-app/backend/internal/admin/services"
 	
 	// API handlers
-	authHandler "veza-web-app/internal/api/auth"
-	exchangeHandler "veza-web-app/internal/api/exchange"
-	fileHandler "veza-web-app/internal/api/file"
-	formationHandler "veza-web-app/internal/api/formation"
-	listingHandler "veza-web-app/internal/api/listing"
-	messageHandler "veza-web-app/internal/api/message"
-	offerHandler "veza-web-app/internal/api/offer"
-	productsHandler "veza-web-app/internal/api/products"
-	ressourceHandler "veza-web-app/internal/api/ressource"
-	roomHandler "veza-web-app/internal/api/room"
-	searchHandler "veza-web-app/internal/api/search"
-	sharedRessourcesHandler "veza-web-app/internal/api/shared_ressources"
-	suggestionsHandler "veza-web-app/internal/api/suggestions"
-	tagHandler "veza-web-app/internal/api/tag"
-	trackHandler "veza-web-app/internal/api/track"
-	userHandler "veza-web-app/internal/api/user"
-	userProductsHandler "veza-web-app/internal/api/user_products"
+	authHandler "veza-web-app/backend/internal/api/auth"
+	exchangeHandler "veza-web-app/backend/internal/api/exchange"
+	fileHandler "veza-web-app/backend/internal/api/file"
+	formationHandler "veza-web-app/backend/internal/api/formation"
+	listingHandler "veza-web-app/backend/internal/api/listing"
+	messageHandler "veza-web-app/backend/internal/api/message"
+	offerHandler "veza-web-app/backend/internal/api/offer"
+	productsHandler "veza-web-app/backend/internal/api/products"
+	ressourceHandler "veza-web-app/backend/internal/api/ressource"
+	roomHandler "veza-web-app/backend/internal/api/room"
+	searchHandler "veza-web-app/backend/internal/api/search"
+	sharedRessourcesHandler "veza-web-app/backend/internal/api/shared_ressources"
+	suggestionsHandler "veza-web-app/backend/internal/api/suggestions"
+	tagHandler "veza-web-app/backend/internal/api/tag"
+	trackHandler "veza-web-app/backend/internal/api/track"
+	userHandler "veza-web-app/backend/internal/api/user"
+	userProductsHandler "veza-web-app/backend/internal/api/user_products"
 	
 	// Middleware
-	"veza-web-app/internal/api/middleware"
+	"veza-web-app/backend/internal/api/middleware"
 )
 
 func main() {

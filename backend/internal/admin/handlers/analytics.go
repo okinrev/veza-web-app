@@ -1,6 +1,6 @@
 //file: internal/models/admin/analytics.go
 
-package admin
+package handlers
 
 import "time"
 

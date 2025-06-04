@@ -1,16 +1,15 @@
 //file: internal/admin/handlers/products.go
+
 package handlers
 
 import (
-   "encoding/json"
-   "net/http"
-   "strconv"
-   
-   "github.com/gorilla/mux"
-   "backend/internal/admin/services"
-   "/internal/models/admin"
-   "veza-backend/internal/utils/response"
-   "veza-backend/pkg/logger"
+    "net/http"
+    "veza-backend/internal/admin/services"
+    "veza-backend/internal/models/admin"  // Fix: Remove quotes and leading slash
+    "veza-backend/internal/utils/response"
+    "veza-backend/pkg/logger"
+    
+    "github.com/gin-gonic/gin"
 )
 
 type ProductHandler struct {

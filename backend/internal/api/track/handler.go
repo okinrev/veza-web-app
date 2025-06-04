@@ -13,10 +13,10 @@ import (
     "github.com/lib/pq"
     "github.com/gorilla/mux"
 
-	"veza-backend/db"
-	"veza-backend/models"
-    "veza-backend/middleware"
-    "veza-backend/utils"
+	"backend/db"
+	"backend/models"
+    "backend/middleware"
+    "backend/utils"
 )
 
 func ListTracks(w http.ResponseWriter, r *http.Request) {

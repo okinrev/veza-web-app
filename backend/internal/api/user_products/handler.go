@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strconv"
 	"github.com/gorilla/mux"
-	"veza-backend/db"
-	"veza-backend/middleware"
-	"veza-backend/models"
+	"backend/db"
+	"backend/middleware"
+	"backend/models"
 )
 
 // ListUserProducts - Liste les produits possédés par l'utilisateur connecté

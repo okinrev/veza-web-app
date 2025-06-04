@@ -7,8 +7,8 @@ import (
     "net/http"
 
     "github.com/gorilla/mux"
-    "veza-backend/models"
-    "veza-backend/db"
+    "backend/models"
+    "backend/db"
 )
 
 func CreateOffer(w http.ResponseWriter, r *http.Request) {

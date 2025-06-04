@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"veza-backend/db"
-	"veza-backend/models"
-	"veza-backend/middleware"
+	"backend/db"
+	"backend/models"
+	"backend/middleware"
 
 	"github.com/lib/pq"
 	"github.com/gorilla/mux"

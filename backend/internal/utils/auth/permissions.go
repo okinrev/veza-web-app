@@ -5,8 +5,8 @@ package auth
 import (
 	"context"
 	"net/http"
-	"veza-backend/internal/constants"
-	"veza-backend/internal/utils/response"
+	"backend/internal/constants"
+	"backend/internal/utils/response"
 )
 
 // HasPermission vérifie si un utilisateur a une permission spécifique

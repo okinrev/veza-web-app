@@ -7,8 +7,8 @@ import (
 	"strings"
 	"log"
 	"strconv"
-	"veza-backend/models"
-	"veza-backend/middleware"
+	"backend/models"
+	"backend/middleware"
 	"github.com/jmoiron/sqlx"
 )
 

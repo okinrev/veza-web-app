@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
-	"veza-backend/models" // ← Ajoute cet import pour accéder aux structs Room et Message
+	"backend/models" // ← Ajoute cet import pour accéder aux structs Room et Message
 )
 
 // 🔍 GET /chat/rooms — Liste des salons publics

@@ -4,8 +4,8 @@ package routes
 
 import (
 	"github.com/gorilla/mux"
-	"veza-backend/handlers"
-	"veza-backend/middleware"
+	"backend/handlers"
+	"backend/middleware"
 )
 
 func RegisterFileRoutes(r *mux.Router) {

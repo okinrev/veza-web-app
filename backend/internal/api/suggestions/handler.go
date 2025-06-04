@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"veza-backend/db"
+	"backend/db"
 )
 
 func GetSuggestions(w http.ResponseWriter, r *http.Request) {

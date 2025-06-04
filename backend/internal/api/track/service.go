@@ -4,9 +4,9 @@ package routes
 
 import (
 	"github.com/gorilla/mux"
-	"veza-backend/handlers"
-	"veza-backend/middleware"
-	"veza-backend/utils"
+	"backend/handlers"
+	"backend/middleware"
+	"backend/utils"
 	"net/http"
 )
 

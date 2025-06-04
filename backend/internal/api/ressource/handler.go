@@ -11,9 +11,9 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-	"veza-backend/db"
-	"veza-backend/middleware"
-	"veza-backend/models"
+	"backend/db"
+	"backend/middleware"
+	"backend/models"
 )
 
 func ListInternalDocs(w http.ResponseWriter, r *http.Request) {

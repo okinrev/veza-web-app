@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"veza-backend/db"
-	"veza-backend/middleware"
-	"veza-backend/models"
+	"backend/db"
+	"backend/middleware"
+	"backend/models"
 )
 
 // ListAdminProducts - Liste tous les produits avec informations détaillées pour l'admin

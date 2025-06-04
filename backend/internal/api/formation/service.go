@@ -4,8 +4,8 @@
 
 // import (
 // 	"github.com/gorilla/mux"
-// 	"veza-backend/handlers"
-// 	"veza-backend/middleware"
+// 	"backend/handlers"
+// 	"backend/middleware"
 // )
 
 // func RegisterFormationRoutes(r *mux.Router) {

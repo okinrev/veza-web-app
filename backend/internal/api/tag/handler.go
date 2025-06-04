@@ -8,7 +8,7 @@ import (
 	"strings"
 	"log"
 
-	"veza-backend/db"
+	"backend/db"
 )
 
 func GetAllTags(w http.ResponseWriter, r *http.Request) {

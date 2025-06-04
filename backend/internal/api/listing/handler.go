@@ -10,8 +10,8 @@ import (
 
 	"github.com/lib/pq"
     "github.com/gorilla/mux"
-    "veza-backend/models"
-    "veza-backend/db"
+    "backend/models"
+    "backend/db"
 )
 
 func CreateListing(w http.ResponseWriter, r *http.Request) {

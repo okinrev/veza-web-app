@@ -4,9 +4,9 @@ package routes
 
 import (
     "github.com/gorilla/mux"
-    "veza-backend/handlers"
+    "backend/handlers"
     "github.com/jmoiron/sqlx"
-    "veza-backend/middleware"
+    "backend/middleware"
 )
 
 func RegisterRoomRoutes(r *mux.Router, db *sqlx.DB) {
