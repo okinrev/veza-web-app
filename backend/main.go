@@ -25,6 +25,8 @@ func main() {
 
 	routes.RegisterProductRoutes(r)
 
+	routes.RegisterUserProductRoutes(r)
+
 	routes.RegisterFileRoutes(r)
 
 	routes.RegisterRessourceRoutes(r)
@@ -48,6 +50,8 @@ func main() {
 	routes.RegisterListingRoutes(r)
 
 	routes.RegisterOfferRoutes(r)
+
+	routes.RegisterAdminRoutes(r)
 
 
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("../frontend")))

@@ -42,7 +42,7 @@ pub async fn send_dm(hub: &ChatHub, from_user: i32, to_user: i32, username: &str
         client.send_text(&payload.to_string());
     }
 
-    tracing::info!(from_user, to_user, payload, "📨 DM envoyé et enregistré");
+    tracing::info!(from_user, to_user, "📨 DM envoyé et enregistré");
 }
 
 pub async fn fetch_dm_history(hub: &ChatHub, user_id: i32, with: i32, limit: i64) -> Vec<DmMessage> {
