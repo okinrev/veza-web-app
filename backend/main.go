@@ -23,7 +23,7 @@ func main() {
 
 	routes.RegisterAuthRoutes(r)
 
-	routes.RegisterProductRoutes(r)
+	routes.RegisterAdminRoutes(r)
 
 	routes.RegisterUserProductRoutes(r)
 
