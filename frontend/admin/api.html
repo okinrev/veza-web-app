@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📚 Talas — Documentation API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        /* Couleurs personnalisées pour les méthodes HTTP */
+        .method-get { @apply bg-emerald-500; }
+        .method-post { @apply bg-blue-500; }
+        .method-put { @apply bg-orange-500; }
+        .method-delete { @apply bg-red-500; }
+        .method-websocket { @apply bg-purple-500; }
+        .method-other { @apply bg-gray-500; }
+        
+        /* Animations personnalisées */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Style pour le code */
+        .code-block {
+            @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        
+        /* Gradient de fond */
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800" x-data="apiDocsApp()" x-init="init()">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-xl">
+        <div class="max-w-7xl mx-auto px-6 py-12">
+            <div class="text-center">
+                <h1 class="text-5xl font-extrabold mb-4 tracking-tight">
+                    📚 Documentation API Talas
+                </h1>
+                <p class="text-xl opacity-90 mb-8">
+                    Guide complet des endpoints et fonctionnalités de l'API Talas
+                </p>
+                
+                <!-- Statistiques rapides -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
+                    <div class="bg-white/20 backdrop-blur rounded-lg p-4">
+                        <div class="text-2xl font-bold" x-text="stats.totalEndpoints"></div>
+                        <div class="text-sm opacity-80">Endpoints</div>
+                    </div>
+                    <div class="bg-white/20 backdrop-blur rounded-lg p-4">
+                        <div class="text-2xl font-bold" x-text="stats.totalSectors"></div>
+                        <div class="text-sm opacity-80">Secteurs</div>
+                    </div>
+                    <div class="bg-white/20 backdrop-blur rounded-lg p-4">
+                        <div class="text-2xl font-bold" x-text="stats.websocketEndpoints"></div>
+                        <div class="text-sm opacity-80">WebSockets</div>
+                    </div>
+                    <div class="bg-white/20 backdrop-blur rounded-lg p-4">
+                        <div class="text-2xl font-bold" x-text="stats.authEndpoints"></div>
+                        <div class="text-sm opacity-80">Auth</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation & Filtres -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <!-- Recherche -->
+                <div class="flex-1 max-w-md">
+                    <div class="relative">
+                        <input 
+                            x-model="searchQuery"
+                            @input="filterRoutes()"
+                            type="text" 
+                            placeholder="Rechercher un endpoint..." 
+                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                        <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Filtres par méthode -->
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="method in availableMethods" :key="method">
+                        <button 
+                            @click="toggleMethodFilter(method)"
+                            :class="methodFilters.includes(method) ? `method-${method.toLowerCase()} text-white` : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
+                            class="px-3 py-1 text-xs font-bold rounded-full uppercase transition-colors"
+                            x-text="method"
+                        ></button>
+                    </template>
+                    <button 
+                        @click="clearFilters()"
+                        class="px-3 py-1 text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 rounded-full transition-colors"
+                    >
+                        Effacer
+                    </button>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-2">
+                    <button 
+                        @click="expandAll()"
+                        class="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+                    >
+                        Tout ouvrir
+                    </button>
+                    <button 
+                        @click="collapseAll()"
+                        class="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                        Tout fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenu principal -->
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        <!-- Résultats de recherche -->
+        <div x-show="searchQuery || methodFilters.length > 0" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p class="text-blue-800">
+                <span x-text="filteredCount"></span> endpoint(s) trouvé(s)
+                <template x-if="searchQuery">
+                    <span>pour "<span class="font-semibold" x-text="searchQuery"></span>"</span>
+                </template>
+                <template x-if="methodFilters.length > 0">
+                    <span>avec les méthodes: <span class="font-semibold" x-text="methodFilters.join(', ')"></span></span>
+                </template>
+            </p>
+        </div>
+
+        <!-- Secteurs d'API -->
+        <div class="space-y-8">
+            <template x-for="(sector, sectorName) in filteredSectors" :key="sectorName">
+                <section class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
+                    <!-- En-tête du secteur -->
+                    <header class="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-2xl font-bold text-gray-800" x-text="sectorName"></h2>
+                            <div class="flex items-center gap-4">
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                                    <span x-text="sector.length"></span> endpoint(s)
+                                </span>
+                                <button 
+                                    @click="toggleSector(sectorName)"
+                                    class="text-gray-500 hover:text-gray-700 transition-colors"
+                                >
+                                    <svg 
+                                        class="w-6 h-6 transition-transform duration-200"
+                                        :class="{ 'rotate-180': sectorExpanded[sectorName] }"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                    >
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Contenu du secteur -->
+                    <div x-show="sectorExpanded[sectorName]" x-cloak class="divide-y divide-gray-100">
+                        <template x-for="(route, index) in sector" :key="index">
+                            <article class="hover:bg-gray-50 transition-colors">
+                                <!-- En-tête de l'endpoint -->
+                                <button
+                                    @click="toggleDescription(sectorName, index)"
+                                    class="w-full text-left p-6 flex items-center justify-between group"
+                                >
+                                    <div class="flex items-center space-x-4 flex-1">
+                                        <!-- Badge méthode HTTP -->
+                                        <span
+                                            class="px-3 py-1 text-xs font-bold text-white rounded-md uppercase shadow-sm"
+                                            :class="`method-${route.method.toLowerCase()}`"
+                                            x-text="route.method"
+                                        ></span>
+                                        
+                                        <!-- Path -->
+                                        <code class="font-mono text-sm bg-gray-100 px-3 py-1 rounded text-gray-800 group-hover:bg-gray-200 transition-colors" x-text="route.path"></code>
+                                        
+                                        <!-- Titre court -->
+                                        <span class="text-gray-600 text-sm" x-text="route.shortDescription || route.description.split('.')[0] + '.'"></span>
+                                    </div>
+                                    
+                                    <!-- Indicateurs -->
+                                    <div class="flex items-center gap-2">
+                                        <template x-if="route.auth">
+                                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">🔐 Auth</span>
+                                        </template>
+                                        <template x-if="route.new">
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">✨ Nouveau</span>
+                                        </template>
+                                        <svg
+                                            class="h-5 w-5 text-gray-400 transition-transform duration-200 group-hover:text-gray-600"
+                                            :class="{ 'rotate-90': route.showDescription }"
+                                            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                        >
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                        </svg>
+                                    </div>
+                                </button>
+
+                                <!-- Détails de l'endpoint -->
+                                <div x-show="route.showDescription" x-cloak class="px-6 pb-6 fade-in">
+                                    <div class="bg-gray-50 rounded-lg p-6 space-y-6">
+                                        <!-- Description -->
+                                        <div>
+                                            <h4 class="text-lg font-semibold text-gray-800 mb-2">Description</h4>
+                                            <p class="text-gray-700 leading-relaxed" x-html="formatDescription(route.description)"></p>
+                                        </div>
+
+                                        <!-- Notes -->
+                                        <div x-show="route.notes">
+                                            <h4 class="text-lg font-semibold text-gray-800 mb-2">📝 Notes techniques</h4>
+                                            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                                                <p class="text-blue-800" x-html="formatDescription(route.notes)"></p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Exemple de requête -->
+                                        <div x-show="route.example">
+                                            <h4 class="text-lg font-semibold text-gray-800 mb-2">💻 Exemple</h4>
+                                            <div class="code-block">
+                                                <pre x-text="route.example"></pre>
+                                            </div>
+                                        </div>
+
+                                        <!-- Paramètres -->
+                                        <div x-show="route.parameters && route.parameters.length > 0">
+                                            <h4 class="text-lg font-semibold text-gray-800 mb-2">⚙️ Paramètres</h4>
+                                            <div class="overflow-x-auto">
+                                                <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                                                    <thead class="bg-gray-100">
+                                                        <tr>
+                                                            <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">Nom</th>
+                                                            <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">Type</th>
+                                                            <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">Requis</th>
+                                                            <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">Description</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-gray-200">
+                                                        <template x-for="param in route.parameters" :key="param.name">
+                                                            <tr>
+                                                                <td class="px-4 py-2 font-mono text-sm" x-text="param.name"></td>
+                                                                <td class="px-4 py-2 text-sm">
+                                                                    <span class="px-2 py-1 bg-gray-100 rounded text-gray-700" x-text="param.type"></span>
+                                                                </td>
+                                                                <td class="px-4 py-2 text-sm">
+                                                                    <span :class="param.required ? 'text-red-600' : 'text-gray-500'" x-text="param.required ? 'Oui' : 'Non'"></span>
+                                                                </td>
+                                                                <td class="px-4 py-2 text-sm text-gray-700" x-text="param.description"></td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <!-- Actions rapides -->
+                                        <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
+                                            <button 
+                                                @click="copyToClipboard(route.path)"
+                                                class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                            >
+                                                📋 Copier l'URL
+                                            </button>
+                                            <template x-if="route.testable">
+                                                <button class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                                                    🧪 Tester
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        </template>
+                    </div>
+                </section>
+            </template>
+        </div>
+
+        <!-- Message si aucun résultat -->
+        <div x-show="Object.keys(filteredSectors).length === 0" class="text-center py-12">
+            <div class="max-w-md mx-auto">
+                <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 20.4a7.962 7.962 0 01-5-1.691c-2.982-1.814-3.982-4.481-3.982-6.109V8.586A2 2 0 014.414 7l4.293-4.293A1 1 0 0110 2.5h4a1 1 0 01.707.293L19 7.086A2 2 0 0120.414 8.6v3.995c0 1.628-1 4.295-3.982 6.109z"></path>
+                </svg>
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">Aucun endpoint trouvé</h3>
+                <p class="text-gray-500">Essayez de modifier vos critères de recherche ou de filtrage.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-16">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <p class="text-gray-300">
+                Documentation API Talas - Mise à jour automatique
+            </p>
+            <p class="text-sm text-gray-400 mt-2">
+                Pour toute question, contactez l'équipe de développement
+            </p>
+        </div>
+    </footer>
+
+    <!-- Notifications -->
+    <div class="fixed bottom-4 right-4 space-y-2 z-50">
+        <template x-for="notification in notifications" :key="notification.id">
+            <div 
+                x-show="notification.show"
+                x-transition
+                class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg"
+            >
+                <span x-text="notification.message"></span>
+            </div>
+        </template>
+    </div>
+
+    <script>
+        function apiDocsApp() {
+            return {
+                searchQuery: '',
+                methodFilters: [],
+                availableMethods: ['GET', 'POST', 'PUT', 'DELETE', 'WEBSOCKET'],
+                notifications: [],
+                sectorExpanded: {},
+                
+                // Statistiques
+                stats: {
+                    totalEndpoints: 0,
+                    totalSectors: 0,
+                    websocketEndpoints: 0,
+                    authEndpoints: 0
+                },
+
+                sectors: {
+                    "🔐 Authentification & Utilisateurs": [
+                        { 
+                            method: "POST", 
+                            path: "/signup", 
+                            description: "Inscrit un **nouvel utilisateur** sur la plateforme Talas. Cette route crée un compte unique avec un nom d'utilisateur, une adresse email et un mot de passe.", 
+                            notes: "Requiert un corps JSON avec les champs obligatoires : `username`, `email`, et `password`. En cas de succès, elle retourne des tokens d'accès pour l'authentification future.",
+                            auth: false,
+                            new: false,
+                            parameters: [
+                                { name: "username", type: "string", required: true, description: "Nom d'utilisateur unique" },
+                                { name: "email", type: "string", required: true, description: "Adresse email valide" },
+                                { name: "password", type: "string", required: true, description: "Mot de passe (min 8 caractères)" }
+                            ],
+                            example: `curl -X POST "http://localhost:8080/signup" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "username": "john_doe",
+    "email": "john@example.com",
+    "password": "motdepasse123"
+  }'`,
+                            testable: true
+                        },
+                        { 
+                            method: "POST", 
+                            path: "/login", 
+                            description: "Authentifie un utilisateur existant. Cette route vérifie les identifiants fournis et, si valides, émet des tokens de session.", 
+                            notes: "Requiert un corps JSON avec les champs `email` et `password`. Retourne un `access_token` et un `refresh_token` nécessaires pour les requêtes authentifiées.",
+                            auth: false,
+                            parameters: [
+                                { name: "email", type: "string", required: true, description: "Adresse email du compte" },
+                                { name: "password", type: "string", required: true, description: "Mot de passe du compte" }
+                            ],
+                            example: `curl -X POST "http://localhost:8080/login" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "email": "john@example.com",
+    "password": "motdepasse123"
+  }'`,
+                            testable: true
+                        },
+                        { 
+                            method: "POST", 
+                            path: "/refresh", 
+                            description: "Rafraîchit un token d'accès expiré. Cela permet de maintenir une session utilisateur active sans avoir à se reconnecter.", 
+                            notes: "Requiert un corps JSON contenant un `refresh_token` valide. Retourne un nouveau `access_token`.",
+                            auth: true,
+                            parameters: [
+                                { name: "refresh_token", type: "string", required: true, description: "Token de rafraîchissement valide" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/users/me", 
+                            description: "Récupère toutes les informations du profil de l'utilisateur actuellement authentifié.", 
+                            notes: "Nécessite un `access_token` valide dans l'en-tête `Authorization`.",
+                            auth: true,
+                            example: `curl -X GET "http://localhost:8080/users/me" \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"`
+                        },
+                        { 
+                            method: "PUT", 
+                            path: "/users/me", 
+                            description: "Met à jour les informations du profil de l'utilisateur connecté, telles que l'adresse email ou le nom d'utilisateur.", 
+                            notes: "Nécessite un `access_token`. Peut mettre à jour les champs `email` et/ou `username` via un corps JSON.",
+                            auth: true,
+                            parameters: [
+                                { name: "username", type: "string", required: false, description: "Nouveau nom d'utilisateur" },
+                                { name: "email", type: "string", required: false, description: "Nouvelle adresse email" }
+                            ]
+                        },
+                        { 
+                            method: "PUT", 
+                            path: "/users/password", 
+                            description: "Permet à l'utilisateur authentifié de changer son mot de passe actuel. Une vérification du mot de passe existant est requise.", 
+                            notes: "Nécessite un `access_token`. Requiert un corps JSON avec `old_password` et `new_password`.",
+                            auth: true,
+                            parameters: [
+                                { name: "old_password", type: "string", required: true, description: "Mot de passe actuel" },
+                                { name: "new_password", type: "string", required: true, description: "Nouveau mot de passe" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/users", 
+                            description: "Liste tous les utilisateurs enregistrés sur la plateforme. Accessible uniquement par les administrateurs ou les utilisateurs avec les permissions adéquates.", 
+                            notes: "Nécessite un `access_token` valide. Peut inclure des paramètres de pagination ou de filtrage.",
+                            auth: true
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/users/except-me", 
+                            description: "Récupère une liste de tous les utilisateurs à l'exception de l'utilisateur actuellement connecté. Utile pour les fonctionnalités de messagerie directe.", 
+                            notes: "Nécessite un `access_token`. Souvent utilisé pour les listes de sélection pour l'envoi de DM.",
+                            auth: true
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/users/search", 
+                            description: "Recherche des utilisateurs par une correspondance partielle ou complète avec leur nom d'utilisateur ou leur adresse email.", 
+                            notes: "Nécessite un `access_token`. Le paramètre de requête `q` est obligatoire.",
+                            auth: true,
+                            parameters: [
+                                { name: "q", type: "string", required: true, description: "Terme de recherche" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/users/{id}/avatar", 
+                            description: "Récupère l'image d'avatar d'un utilisateur spécifique. L'ID de l'utilisateur est passé dans l'URL.", 
+                            notes: "L'ID de l'utilisateur est un paramètre de route (`{id}`). Retourne l'image directement.",
+                            parameters: [
+                                { name: "id", type: "integer", required: true, description: "ID de l'utilisateur" }
+                            ]
+                        },
+                    ],
+                    "🎵 Pistes Musicales": [
+                        { 
+                            method: "GET", 
+                            path: "/tracks/all", 
+                            description: "Récupère une liste complète de toutes les pistes musicales disponibles sur la plateforme. Idéal pour l'affichage initial ou la navigation.", 
+                            notes: "Cet endpoint est fréquemment appelé par des interfaces utilisateur pour peupler les listes de lecture."
+                        },
+                        { 
+                            method: "POST", 
+                            path: "/tracks", 
+                            description: "Permet à un utilisateur de téléverser une nouvelle piste musicale. Les métadonnées et le fichier audio sont envoyés simultanément.", 
+                            notes: "Requiert un formulaire multipart (`multipart/form-data`) avec les champs `title`, `artist`, `tags` (séparés par des virgules), et `audio` (le fichier MP3/WAV, etc.). Nécessite un token d'accès.",
+                            auth: true,
+                            parameters: [
+                                { name: "title", type: "string", required: true, description: "Titre de la piste" },
+                                { name: "artist", type: "string", required: true, description: "Nom de l'artiste" },
+                                { name: "tags", type: "string", required: false, description: "Tags séparés par des virgules" },
+                                { name: "audio", type: "file", required: true, description: "Fichier audio (MP3, WAV, FLAC)" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/stream/{filename}", 
+                            description: "Diffuse un fichier audio directement depuis le serveur. Cette route est conçue pour le streaming public ou non-sécurisé.", 
+                            notes: "Le nom du fichier audio est passé en paramètre de route. Aucune authentification n'est requise.",
+                            parameters: [
+                                { name: "filename", type: "string", required: true, description: "Nom du fichier audio" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/stream/signed/{filename}", 
+                            description: "Diffuse un fichier audio via une URL sécurisée et signée. La signature garantit l'accès autorisé et limite la durée de validité.", 
+                            notes: "Pour le streaming protégé. L'URL contient un horodatage d'expiration (`expires`) et une signature cryptographique (`signature`) pour valider l'accès.",
+                            parameters: [
+                                { name: "filename", type: "string", required: true, description: "Nom du fichier audio" },
+                                { name: "expires", type: "timestamp", required: true, description: "Timestamp d'expiration" },
+                                { name: "signature", type: "string", required: true, description: "Signature cryptographique" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/tracks/{id}", 
+                            description: "Récupère les détails spécifiques d'une piste musicale individuelle, incluant son titre, artiste, tags, et informations de l'uploader.", 
+                            notes: "L'ID de la piste est un paramètre de route (`{id}`).",
+                            parameters: [
+                                { name: "id", type: "integer", required: true, description: "ID de la piste" }
+                            ]
+                        },
+                        { 
+                            method: "PUT", 
+                            path: "/tracks/{id}", 
+                            description: "Met à jour les informations d'une piste musicale existante. Seul l'uploader ou un administrateur peut modifier la piste.", 
+                            notes: "Nécessite un `access_token`. L'ID de la piste est un paramètre de route (`{id}`). Les champs modifiables sont envoyés dans le corps JSON.",
+                            auth: true,
+                            parameters: [
+                                { name: "id", type: "integer", required: true, description: "ID de la piste" },
+                                { name: "title", type: "string", required: false, description: "Nouveau titre" },
+                                { name: "artist", type: "string", required: false, description: "Nouveau nom d'artiste" },
+                                { name: "tags", type: "string", required: false, description: "Nouveaux tags" }
+                            ]
+                        },
+                        { 
+                            method: "DELETE", 
+                            path: "/tracks/{id}", 
+                            description: "Supprime une piste musicale de la plateforme. Cette action est irréversible et nécessite des droits d'accès suffisants.", 
+                            notes: "Nécessite un `access_token`. L'ID de la piste est un paramètre de route (`{id}`).",
+                            auth: true,
+                            parameters: [
+                                { name: "id", type: "integer", required: true, description: "ID de la piste à supprimer" }
+                            ]
+                        },
+                    ],
+                    "📁 Ressources Partagées": [
+                        { 
+                            method: "GET", 
+                            path: "/shared_ressources", 
+                            description: "Liste toutes les ressources partagées publiquement disponibles sur la plateforme. Cela inclut des documents, images, vidéos, etc.", 
+                            notes: "Cet endpoint est souvent appelé par des interfaces utilisateur pour afficher le contenu partagé."
+                        },
+                        { 
+                            method: "POST", 
+                            path: "/shared_ressources", 
+                            description: "Uploade une nouvelle ressource à partager publiquement. Cette route permet d'ajouter des fichiers avec leurs métadonnées associées.", 
+                            notes: "Requiert un formulaire multipart (`multipart/form-data`) avec les champs `title`, `type`, `tags`, `description`, et `file`. Nécessite un token d'accès.",
+                            auth: true,
+                            parameters: [
+                                { name: "title", type: "string", required: true, description: "Titre de la ressource" },
+                                { name: "type", type: "string", required: true, description: "Type de ressource (sample, preset, project, etc.)" },
+                                { name: "description", type: "string", required: false, description: "Description de la ressource" },
+                                { name: "tags", type: "string", required: false, description: "Tags séparés par des virgules" },
+                                { name: "file", type: "file", required: true, description: "Fichier à partager" },
+                                { name: "is_public", type: "boolean", required: false, description: "Visibilité publique" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/shared_ressources/{id}", 
+                            description: "Récupère les détails et métadonnées d'une ressource partagée spécifique par son identifiant unique.", 
+                            notes: "L'ID de la ressource est un paramètre de route (`{id}`).",
+                            parameters: [
+                                { name: "id", type: "integer", required: true, description: "ID de la ressource" }
+                            ]
+                        },
+                        { 
+                            method: "PUT", 
+                            path: "/shared_ressources/{id}", 
+                            description: "Met à jour les informations d'une ressource partagée existante. Seul l'uploader ou un administrateur peut effectuer cette modification.", 
+                            notes: "Nécessite un `access_token`. L'ID de la ressource est un paramètre de route (`{id}`). Les champs à modifier sont envoyés dans le corps JSON.",
+                            auth: true,
+                            parameters: [
+                                { name: "id", type: "integer", required: true, description: "ID de la ressource" }
+                            ]
+                        },
+                        { 
+                            method: "DELETE", 
+                            path: "/shared_ressources/{id}", 
+                            description: "Supprime une ressource partagée de la plateforme. Cette action est irréversible et nécessite des permissions d'administrateur ou d'uploader.", 
+                            notes: "Nécessite un `access_token`. L'ID de la ressource est un paramètre de route (`{id}`).",
+                            auth: true,
+                            parameters: [
+                                { name: "id", type: "integer", required: true, description: "ID de la ressource à supprimer" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/shared_ressources/{filename}", 
+                            description: "Télécharge un fichier de ressource partagée directement. Cette route est conçue pour faciliter l'accès aux fichiers partagés.", 
+                            notes: "Le nom du fichier est passé en paramètre de route. Peut nécessiter une authentification selon les permissions.",
+                            parameters: [
+                                { name: "filename", type: "string", required: true, description: "Nom du fichier" },
+                                { name: "download", type: "boolean", required: false, description: "Force le téléchargement" }
+                            ]
+                        },
+                    ],
+                    "🏷️ Tags & Suggestions": [
+                        { 
+                            method: "GET", 
+                            path: "/suggestions", 
+                            description: "Fournit des suggestions basées sur une requête, utile pour l'autocomplétion ou la découverte de contenu.", 
+                            notes: "Le paramètre de requête peut être `tag`, `title`, `uploader`, `doc`, `user`, ou `track` pour des suggestions filtrées.",
+                            parameters: [
+                                { name: "tag", type: "string", required: false, description: "Recherche de tags" },
+                                { name: "title", type: "string", required: false, description: "Recherche de titres" },
+                                { name: "user", type: "string", required: false, description: "Recherche d'utilisateurs" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/tags", 
+                            description: "Récupère une liste de tous les tags existants sur la plateforme, utilisés pour categoriser les pistes, ressources, etc.", 
+                            notes: "Utilisé pour afficher toutes les options de tags disponibles pour la recherche ou le filtrage."
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/tags/search", 
+                            description: "Recherche des tags spécifiques en fonction d'une chaîne de caractères. Utile pour filtrer les tags ou trouver des correspondances exactes/partielles.", 
+                            notes: "Le paramètre de requête `q` est utilisé pour la recherche de tags.",
+                            parameters: [
+                                { name: "q", type: "string", required: true, description: "Terme de recherche" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/tags/popular", 
+                            description: "Récupère une liste des tags les plus fréquemment utilisés ou les plus populaires sur la plateforme, classés par pertinence ou nombre d'occurrences.", 
+                            notes: "Idéal pour identifier les sujets ou catégories tendances."
+                        },
+                    ],
+                    "🏷️ Listings & Offers": [
+                        { 
+                            method: "POST", 
+                            path: "/listings", 
+                            description: "Permet de créer une nouvelle offfre de troc.", 
+                            notes: "Le paramètre de requête peut être `tag`, `title`, `uploader`, `doc`, `user`, ou `track` pour des suggestions filtrées.",
+                            parameters: [
+                                { name: "tag", type: "string", required: false, description: "Recherche de tags" },
+                                { name: "title", type: "string", required: false, description: "Recherche de titres" },
+                                { name: "user", type: "string", required: false, description: "Recherche d'utilisateurs" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/listings", 
+                            description: "Récupère une liste de tous les tags existants sur la plateforme, utilisés pour categoriser les pistes, ressources, etc.", 
+                            notes: "Utilisé pour afficher toutes les options de tags disponibles pour la recherche ou le filtrage."
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/listings/{id:[0-9]+}", 
+                            description: "Recherche des tags spécifiques en fonction d'une chaîne de caractères. Utile pour filtrer les tags ou trouver des correspondances exactes/partielles.", 
+                            notes: "Le paramètre de requête `q` est utilisé pour la recherche de tags.",
+                            parameters: [
+                                { name: "q", type: "string", required: true, description: "Terme de recherche" }
+                            ]
+                        },
+                        { 
+                            method: "DELETE", 
+                            path: "/listings/{id:[0-9]+}", 
+                            description: "Récupère une liste des tags les plus fréquemment utilisés ou les plus populaires sur la plateforme, classés par pertinence ou nombre d'occurrences.", 
+                            notes: "Idéal pour identifier les sujets ou catégories tendances."
+                        },
+                        { 
+                            method: "POST", 
+                            path: "/listings/{id:[0-9]+}/offer", 
+                            description: "Recherche des tags spécifiques en fonction d'une chaîne de caractères. Utile pour filtrer les tags ou trouver des correspondances exactes/partielles.", 
+                            notes: "Le paramètre de requête `q` est utilisé pour la recherche de tags.",
+                            parameters: [
+                                { name: "q", type: "string", required: true, description: "Terme de recherche" }
+                            ]
+                        },
+                        { 
+                            method: "POST", 
+                            path: "/offers/{id:[0-9]+}/accept", 
+                            description: "Récupère une liste des tags les plus fréquemment utilisés ou les plus populaires sur la plateforme, classés par pertinence ou nombre d'occurrences.", 
+                            notes: "Idéal pour identifier les sujets ou catégories tendances."
+                        },
+                    ],
+                    "💬 Chat & WebSockets": [
+                        { 
+                            method: "WEBSOCKET", 
+                            path: "ws://localhost:9001/?token={token}", 
+                            description: "Établit une connexion WebSocket pour les messages directs (DM) et les salons de discussion. Permet l'envoi et la réception de messages en temps réel.", 
+                            notes: "Nécessite un token JWT valide passé comme paramètre de requête `token`. Les messages sont échangés via cette connexion persistante.",
+                            auth: true,
+                            parameters: [
+                                { name: "token", type: "string", required: true, description: "Token JWT d'authentification" }
+                            ],
+                            example: `// Connexion WebSocket
+const token = localStorage.getItem('access_token');
+const socket = new WebSocket(\`ws://localhost:9001/?token=\${token}\`);
+
+// Envoyer un message privé
+socket.send(JSON.stringify({
+    type: "dm",
+    to: 123,
+    content: "Hello!"
+}));
+
+// Rejoindre un salon
+socket.send(JSON.stringify({
+    type: "join",
+    room: "general"
+}));`
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/chat/rooms", 
+                            description: "Liste tous les salons de discussion publics disponibles sur la plateforme. Utile pour permettre aux utilisateurs de rejoindre ou de découvrir des salons.", 
+                            notes: "Utilisé pour afficher les salons auxquels un utilisateur peut participer.",
+                            auth: true
+                        },
+                        { 
+                            method: "POST", 
+                            path: "/chat/rooms", 
+                            description: "Crée un nouveau salon de discussion, qui peut être public ou privé. L'utilisateur qui crée le salon en devient l'administrateur.", 
+                            notes: "Requiert un corps JSON avec les champs `name` (nom du salon) et optionnellement `description`. Nécessite un token d'accès.",
+                            auth: true,
+                            parameters: [
+                                { name: "name", type: "string", required: true, description: "Nom du salon" },
+                                { name: "description", type: "string", required: false, description: "Description du salon" },
+                                { name: "is_private", type: "boolean", required: false, description: "Salon privé ou public" }
+                            ]
+                        },
+                        { 
+                            method: "GET", 
+                            path: "/generate-stream-url", 
+                            description: "Génère une URL sécurisée et signée pour le streaming de fichiers audio. Utilisé pour l'écoute sécurisée.", 
+                            notes: "Nécessite un token d'accès. Le paramètre `filename` spécifie le fichier à streamer.",
+                            auth: true,
+                            parameters: [
+                                { name: "filename", type: "string", required: true, description: "Nom du fichier à streamer" }
+                            ]
+                        },
+                    ],
+                },
+
+                // Secteurs filtrés (calculé dynamiquement)
+                filteredSectors: {},
+                filteredCount: 0,
+
+                init() {
+                    // Initialiser l'état d'expansion des secteurs
+                    for (const sectorName in this.sectors) {
+                        this.sectorExpanded[sectorName] = true; // Tous ouverts par défaut
+                        
+                        // Initialiser showDescription pour chaque route
+                        this.sectors[sectorName].forEach(route => {
+                            route.showDescription = false;
+                        });
+                    }
+                    
+                    // Calculer les statistiques
+                    this.calculateStats();
+                    
+                    // Initialiser les secteurs filtrés
+                    this.filterRoutes();
+                },
+
+                calculateStats() {
+                    let totalEndpoints = 0;
+                    let websocketEndpoints = 0;
+                    let authEndpoints = 0;
+
+                    for (const sectorName in this.sectors) {
+                        const routes = this.sectors[sectorName];
+                        totalEndpoints += routes.length;
+                        
+                        routes.forEach(route => {
+                            if (route.method === 'WEBSOCKET') {
+                                websocketEndpoints++;
+                            }
+                            if (route.auth) {
+                                authEndpoints++;
+                            }
+                        });
+                    }
+
+                    this.stats = {
+                        totalEndpoints,
+                        totalSectors: Object.keys(this.sectors).length,
+                        websocketEndpoints,
+                        authEndpoints
+                    };
+                },
+
+                filterRoutes() {
+                    this.filteredSectors = {};
+                    this.filteredCount = 0;
+
+                    for (const sectorName in this.sectors) {
+                        const filteredRoutes = this.sectors[sectorName].filter(route => {
+                            // Filtre par méthode
+                            if (this.methodFilters.length > 0 && !this.methodFilters.includes(route.method)) {
+                                return false;
+                            }
+
+                            // Filtre par recherche textuelle
+                            if (this.searchQuery) {
+                                const query = this.searchQuery.toLowerCase();
+                                return (
+                                    route.path.toLowerCase().includes(query) ||
+                                    route.description.toLowerCase().includes(query) ||
+                                    route.method.toLowerCase().includes(query) ||
+                                    (route.notes && route.notes.toLowerCase().includes(query))
+                                );
+                            }
+
+                            return true;
+                        });
+
+                        if (filteredRoutes.length > 0) {
+                            this.filteredSectors[sectorName] = filteredRoutes;
+                            this.filteredCount += filteredRoutes.length;
+                        }
+                    }
+                },
+
+                toggleMethodFilter(method) {
+                    const index = this.methodFilters.indexOf(method);
+                    if (index > -1) {
+                        this.methodFilters.splice(index, 1);
+                    } else {
+                        this.methodFilters.push(method);
+                    }
+                    this.filterRoutes();
+                },
+
+                clearFilters() {
+                    this.searchQuery = '';
+                    this.methodFilters = [];
+                    this.filterRoutes();
+                },
+
+                toggleSector(sectorName) {
+                    this.sectorExpanded[sectorName] = !this.sectorExpanded[sectorName];
+                },
+
+                expandAll() {
+                    for (const sectorName in this.filteredSectors) {
+                        this.sectorExpanded[sectorName] = true;
+                        this.filteredSectors[sectorName].forEach(route => {
+                            route.showDescription = true;
+                        });
+                    }
+                },
+
+                collapseAll() {
+                    for (const sectorName in this.filteredSectors) {
+                        this.sectorExpanded[sectorName] = false;
+                        this.filteredSectors[sectorName].forEach(route => {
+                            route.showDescription = false;
+                        });
+                    }
+                },
+
+                toggleDescription(sectorName, index) {
+                    const route = this.filteredSectors[sectorName][index];
+                    route.showDescription = !route.showDescription;
+                },
+
+                formatDescription(text) {
+                    if (!text) return '';
+                    
+                    // Convertir le markdown basique en HTML
+                    return text
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/`(.*?)`/g, '<code class="bg-gray-200 px-1 rounded">$1</code>')
+                        .replace(/\n/g, '<br>');
+                },
+
+                async copyToClipboard(text) {
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        this.showNotification('URL copiée dans le presse-papier !');
+                    } catch (err) {
+                        console.error('Erreur lors de la copie:', err);
+                    }
+                },
+
+                showNotification(message) {
+                    const id = Date.now();
+                    const notification = {
+                        id,
+                        message,
+                        show: true
+                    };
+                    this.notifications.push(notification);
+
+                    setTimeout(() => {
+                        const index = this.notifications.findIndex(n => n.id === id);
+                        if (index > -1) {
+                            this.notifications[index].show = false;
+                            setTimeout(() => {
+                                this.notifications = this.notifications.filter(n => n.id !== id);
+                            }, 300);
+                        }
+                    }, 3000);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
