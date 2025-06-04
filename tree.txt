@@ -14,28 +14,76 @@
 │   ├── internal
 │   │   ├── admin
 │   │   │   ├── handlers
+│   │   │   │   ├── analytics.go
+│   │   │   │   ├── category.go
 │   │   │   │   └── products.go
 │   │   │   ├── repository
 │   │   │   └── services
 │   │   │       └── product_service.go
 │   │   ├── api
-│   │   │   ├── handlers
-│   │   │   │   ├── admin_categories.go
-│   │   │   │   ├── file.go
-│   │   │   │   ├── listing.go
-│   │   │   │   ├── message.go
-│   │   │   │   ├── offer.go
-│   │   │   │   ├── products.go
-│   │   │   │   ├── ressource.go
-│   │   │   │   ├── room.go
-│   │   │   │   ├── search.go
-│   │   │   │   ├── shared_ressources.go
-│   │   │   │   ├── suggestions.go
-│   │   │   │   ├── tag.go
-│   │   │   │   ├── track.go
-│   │   │   │   ├── user.go
-│   │   │   │   └── user_products.go
-│   │   │   └── middleware
+│   │   │   ├── auth
+│   │   │   │   └── service.go
+│   │   │   ├── exchange
+│   │   │   │   └── service.go
+│   │   │   ├── file
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── formation
+│   │   │   │   └── service.go
+│   │   │   ├── listing
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── message
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── middleware
+│   │   │   │   └── jwt.go
+│   │   │   ├── offer
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── products
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── ressource
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── room
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── search
+│   │   │   │   ├── handler.go
+│   │   │   │   └── service.go
+│   │   │   ├── shared_ressources
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── suggestions
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── tag
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── track
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   ├── user
+│   │   │   │   ├── handler.go
+│   │   │   │   ├── model.go
+│   │   │   │   └── service.go
+│   │   │   └── user_products
+│   │   │       ├── handler.go
+│   │   │       ├── model.go
+│   │   │       └── service.go
 │   │   ├── config
 │   │   │   └── config.go
 │   │   ├── constants
@@ -58,13 +106,10 @@
 │   │   │       ├── track.sql
 │   │   │       └── users.sql
 │   │   ├── models
-│   │   │   ├── admin
-│   │   │   │   ├── analytics.go
-│   │   │   │   ├── category.go
-│   │   │   │   └── product.go
-│   │   │   ├── products.go
-│   │   │   ├── user.go
-│   │   │   └── user_products.go
+│   │   │   └── admin
+│   │   │       ├── analytics.go
+│   │   │       ├── category.go
+│   │   │       └── product.go
 │   │   └── utils
 │   │       ├── auth
 │   │       │   ├── hash.go
@@ -75,25 +120,10 @@
 │   │       ├── response
 │   │       │   └── json.go
 │   │       └── validation
-│   ├── internal_ressources
+│   │           ├── hash.go
+│   │           └── signedurl.go
 │   ├── main.go
 │   ├── Makefile
-│   ├── middleware
-│   │   └── jwt.go
-│   ├── models
-│   │   ├── files.go
-│   │   ├── listing.go
-│   │   ├── message.go
-│   │   ├── offer.go
-│   │   ├── products.go
-│   │   ├── ressources.go
-│   │   ├── room.go
-│   │   ├── shared_ressources.go
-│   │   ├── suggestions.go
-│   │   ├── tag.go
-│   │   ├── track.go
-│   │   ├── user.go
-│   │   └── user_products.go
 │   ├── modules
 │   │   ├── chat_server
 │   │   │   ├── Cargo.lock
@@ -123,24 +153,6 @@
 │   │   ├── cache
 │   │   ├── logger
 │   │   └── validator
-│   ├── routes
-│   │   ├── auth.go
-│   │   ├── exchange.go
-│   │   ├── file.go
-│   │   ├── formation.go
-│   │   ├── listing.go
-│   │   ├── message.go
-│   │   ├── offer.go
-│   │   ├── products.go
-│   │   ├── ressource.go
-│   │   ├── room.go
-│   │   ├── search.go
-│   │   ├── shared_ressources.go
-│   │   ├── suggestions.go
-│   │   ├── tag.go
-│   │   ├── track.go
-│   │   ├── user.go
-│   │   └── user_products.go
 │   ├── scripts
 │   │   └── test-migration.sh
 │   ├── static
@@ -151,6 +163,7 @@
 │   │   │   └── sample.mp3
 │   │   ├── default-avatar.png
 │   │   ├── favicon.ico
+│   │   ├── internal_ressources
 │   │   ├── shared
 │   │   │   ├── 2A361-68306A00-C67-4D36D880
 │   │   │   └── secu_indus.pdf
@@ -164,10 +177,6 @@
 │   │   └── uploads
 │   │       └── 1_1747129598_test_upload.txt
 │   ├── tests
-│   ├── utils
-│   │   ├── hash.go
-│   │   ├── jwt.go
-│   │   └── signedurl.go
 │   └── web
 ├── bordel_command_curl_test
 ├── frontend
@@ -253,4 +262,4 @@
 ├── veza-dev.sh
 └── veza-web-app_tree.msg
 
-81 directories, 173 files
+93 directories, 170 files
