@@ -22,6 +22,7 @@
 │   │   │       └── product_service.go
 │   │   ├── api
 │   │   │   ├── auth
+│   │   │   │   ├── hash.go
 │   │   │   │   └── service.go
 │   │   │   ├── exchange
 │   │   │   │   └── service.go
@@ -153,6 +154,7 @@
 │   │   ├── cache
 │   │   ├── logger
 │   │   └── validator
+│   ├── run.sh
 │   ├── scripts
 │   │   └── test-migration.sh
 │   ├── static
@@ -262,4 +264,4 @@
 ├── veza-dev.sh
 └── veza-web-app_tree.msg
 
-93 directories, 170 files
+93 directories, 172 files

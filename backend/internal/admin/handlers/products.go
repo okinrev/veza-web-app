@@ -7,8 +7,8 @@ import (
    "strconv"
    
    "github.com/gorilla/mux"
-   "veza-backend/internal/admin/services"
-   "veza-backend/internal/models/admin"
+   "backend/internal/admin/services"
+   "/internal/models/admin"
    "veza-backend/internal/utils/response"
    "veza-backend/pkg/logger"
 )
