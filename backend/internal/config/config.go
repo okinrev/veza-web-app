@@ -1,69 +1,98 @@
+// internal/config/config.go (Enhanced)
 package config
 
 import (
-	"os"
+    "os"
+    "strconv"
+    "time"
 )
 
-// Config holds all configuration for the application
 type Config struct {
-	Port        string
-	Environment string
-	DatabaseURL string
-	JWTSecret   string
-	RedisURL    string
-	
-	// File upload settings
-	MaxFileSize    int64
-	UploadPath     string
-	AllowedFormats []string
-	
-	// CORS settings
-	AllowedOrigins []string
-	
-	// Rate limiting
-	RateLimitEnabled bool
-	RateLimitRPM     int
+    Server   ServerConfig
+    Database DatabaseConfig
+    JWT      JWTConfig
+    Redis    RedisConfig
+    S3       S3Config
+    CORS     CORSConfig
 }
 
-// New creates a new configuration with values from environment variables
-func New() *Config {
-	cfg := &Config{
-		Port:        getEnv("PORT", "8080"),
-		Environment: getEnv("ENVIRONMENT", "development"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://user:password@localhost:5432/veza_db?sslmode=disable"),
-		JWTSecret:   getEnv("JWT_SECRET", "your-256-bit-secret"),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
-		
-		// File upload defaults
-		MaxFileSize:    10 * 1024 * 1024, // 10MB
-		UploadPath:     getEnv("UPLOAD_PATH", "./static/uploads"),
-		AllowedFormats: []string{".jpg", ".jpeg", ".png", ".gif", ".pdf", ".mp3", ".wav", ".mp4"},
-		
-		// CORS defaults
-		AllowedOrigins: []string{
-			"http://localhost:3000",
-			"http://localhost:8080",
-			"http://127.0.0.1:3000",
-			"http://127.0.0.1:8080",
-		},
-		
-		// Rate limiting defaults
-		RateLimitEnabled: getEnv("RATE_LIMIT_ENABLED", "true") == "true",
-		RateLimitRPM:     60,
-	}
-
-	// Validate required fields
-	if cfg.JWTSecret == "your-256-bit-secret" && cfg.Environment == "production" {
-		panic("JWT_SECRET must be set for production environment")
-	}
-
-	return cfg
+type ServerConfig struct {
+    Port            string
+    ReadTimeout     time.Duration
+    WriteTimeout    time.Duration
+    ShutdownTimeout time.Duration
+    Environment     string
 }
 
-// getEnv gets an environment variable or returns a default value
+type DatabaseConfig struct {
+    Host         string
+    Port         string
+    Username     string
+    Password     string
+    Database     string
+    SSLMode      string
+    MaxOpenConns int
+    MaxIdleConns int
+    MaxLifetime  time.Duration
+}
+
+type JWTConfig struct {
+    Secret         string
+    ExpirationTime time.Duration
+    RefreshTime    time.Duration
+}
+
+func LoadConfig() (*Config, error) {
+    config := &Config{
+        Server: ServerConfig{
+            Port:            getEnv("PORT", "8080"),
+            ReadTimeout:     getDurationEnv("READ_TIMEOUT", 10*time.Second),
+            WriteTimeout:    getDurationEnv("WRITE_TIMEOUT", 10*time.Second),
+            ShutdownTimeout: getDurationEnv("SHUTDOWN_TIMEOUT", 30*time.Second),
+            Environment:     getEnv("ENVIRONMENT", "development"),
+        },
+        Database: DatabaseConfig{
+            Host:         getEnv("DB_HOST", "localhost"),
+            Port:         getEnv("DB_PORT", "5432"),
+            Username:     getEnv("DB_USERNAME", "postgres"),
+            Password:     getEnv("DB_PASSWORD", ""),
+            Database:     getEnv("DB_NAME", "veza"),
+            SSLMode:      getEnv("DB_SSLMODE", "disable"),
+            MaxOpenConns: getIntEnv("DB_MAX_OPEN_CONNS", 25),
+            MaxIdleConns: getIntEnv("DB_MAX_IDLE_CONNS", 25),
+            MaxLifetime:  getDurationEnv("DB_MAX_LIFETIME", 5*time.Minute),
+        },
+        JWT: JWTConfig{
+            Secret:         getEnv("JWT_SECRET", "your-secret-key"),
+            ExpirationTime: getDurationEnv("JWT_EXPIRATION", 24*time.Hour),
+            RefreshTime:    getDurationEnv("JWT_REFRESH_TIME", 7*24*time.Hour),
+        },
+    }
+    
+    return config, nil
+}
+
 func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
+    if value := os.Getenv(key); value != "" {
+        return value
+    }
+    return defaultValue
+}
+
+func getIntEnv(key string, defaultValue int) int {
+    if value := os.Getenv(key); value != "" {
+        if intValue, err := strconv.Atoi(value); err == nil {
+            return intValue
+        }
+    }
+    return defaultValue
+}
+
+func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
+    if value := os.Getenv(key); value != "" {
+        if duration, err := time.ParseDuration(value); err == nil {
+            return duration
+        }
+    }
+    return defaultValue
 }

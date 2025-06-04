@@ -9,33 +9,13 @@ import (
     "veza-web-app/internal/config"
     "veza-web-app/internal/database"
     
-    // Admin packages
-    adminHandlers "veza-web-app/internal/admin/handlers"
-    adminServices "veza-web-app/internal/admin/services"
-    
     // API packages
     "veza-web-app/internal/api/auth"
-    "veza-web-app/internal/api/exchange"
-    "veza-web-app/internal/api/file"
-    "veza-web-app/internal/api/formation"
-    "veza-web-app/internal/api/listing"
-    "veza-web-app/internal/api/message"
-    "veza-web-app/internal/api/middleware"
-    "veza-web-app/internal/api/offer"
-    "veza-web-app/internal/api/products"
-    "veza-web-app/internal/api/ressource"
-    "veza-web-app/internal/api/room"
-    "veza-web-app/internal/api/search"
-    "veza-web-app/internal/api/shared_ressources"
-    "veza-web-app/internal/api/suggestions"
-    "veza-web-app/internal/api/tag"
-    "veza-web-app/internal/api/track"
     "veza-web-app/internal/api/user"
-    "veza-web-app/internal/api/user_products"
+    "veza-web-app/internal/api/middleware"
     
     // Utility packages
     "veza-web-app/pkg/logger"
-    "veza-web-app/pkg/validator"
 
     // External packages
     "github.com/gin-gonic/gin"
@@ -49,10 +29,10 @@ func main() {
     }
 
     // Initialize config
-    cfg := config.Load()
+    cfg := config.New()
 
     // Initialize logger
-    logger.Init(cfg.LogLevel)
+    logger := logger.New(cfg.Environment)
 
     // Initialize database
     db, err := database.NewConnection(cfg.DatabaseURL)
@@ -60,6 +40,11 @@ func main() {
         log.Fatal("Failed to connect to database:", err)
     }
     defer db.Close()
+
+    // Run migrations
+    if err := database.RunMigrations(db); err != nil {
+        log.Fatal("Failed to run migrations:", err)
+    }
 
     // Initialize Gin router
     if cfg.Environment == "production" {
@@ -84,49 +69,20 @@ func main() {
     v1 := router.Group("/api/v1")
     {
         // Authentication routes
-        auth.SetupRoutes(v1, db)
+        authService := auth.NewService(db, cfg.JWTSecret)
+        auth.SetupRoutes(v1, authService)
         
         // User routes
-        user.SetupRoutes(v1, db)
-        
-        // Product routes
-        products.SetupRoutes(v1, db)
-        
-        // File routes
-        file.SetupRoutes(v1, db)
-        
-        // Chat routes
-        message.SetupRoutes(v1, db)
-        room.SetupRoutes(v1, db)
-        
-        // Trading routes
-        listing.SetupRoutes(v1, db)
-        offer.SetupRoutes(v1, db)
-        exchange.SetupRoutes(v1, db)
-        
-        // Resource routes
-        ressource.SetupRoutes(v1, db)
-        shared_ressources.SetupRoutes(v1, db)
-        
-        // Media routes
-        track.SetupRoutes(v1, db)
-        
-        // Search routes
-        search.SetupRoutes(v1, db)
-        suggestions.SetupRoutes(v1, db)
-        tag.SetupRoutes(v1, db)
-        
-        // Formation routes
-        formation.SetupRoutes(v1, db)
-        
-        // User products
-        user_products.SetupRoutes(v1, db)
+        userService := user.NewService(db)
+        user.SetupRoutes(v1, userService)
     }
 
-    // Admin routes
+    // Admin routes with JWT middleware
     admin := router.Group("/admin")
+    admin.Use(middleware.JWTAuthMiddleware(cfg.JWTSecret))
+    admin.Use(middleware.AdminMiddleware())
     {
-        adminHandlers.SetupRoutes(admin, db)
+        // Add admin routes here
     }
 
     // Static file serving
