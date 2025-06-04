@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"strings"
 
-	"veza-web-app/internal/utils/auth"
-
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )

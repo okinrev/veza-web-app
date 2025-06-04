@@ -1,3 +1,4 @@
+// internal/api/auth/service.go
 package auth
 
 import (
@@ -11,15 +12,7 @@ import (
 	
 	"veza-web-app/internal/api/user"
 	"veza-web-app/internal/utils/auth"
-	"veza-web-app/pkg/validator"
 )
-
-func SetupRoutes(router *gin.RouterGroup, db *database.DB) {
-    // Setup auth routes
-    router.POST("/login", LoginHandler)
-    router.POST("/register", RegisterHandler)
-    router.POST("/refresh", RefreshHandler)
-}
 
 // Service handles authentication business logic
 type Service struct {

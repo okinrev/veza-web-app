@@ -1,53 +1,54 @@
-//file: backend/utils/jwt.go
-
+// internal/utils/auth/jwt.go
 package auth
 
 import (
+	"fmt"
 	"time"
-	"os"
-	"strings"
+
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 )
 
-var jwtKey = []byte(strings.Trim(os.Getenv("JWT_SECRET"), `"`))
-
+// Claims represents JWT claims
 type Claims struct {
-	UserID   int    `json:"user_id"`
-	Username string `json:"username"`
+	UserID int    `json:"user_id"`
+	Email  string `json:"email"`
+	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(userID int, username string) (string, error) {
-	claims := &Claims{
-		UserID:   userID,
-		Username: username,
+// GenerateJWT generates a JWT token
+func GenerateJWT(userID int, email, role, secretKey string, duration time.Duration) (string, error) {
+	claims := Claims{
+		UserID: userID,
+		Email:  email,
+		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtKey)
+	return token.SignedString([]byte(secretKey))
 }
 
-func ValidateJWT(tokenStr string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
+// ValidateJWT validates a JWT token and returns the claims
+func ValidateJWT(tokenString, secretKey string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secretKey), nil
 	})
-	if err != nil || !token.Valid {
+
+	if err != nil {
 		return nil, err
 	}
 
 	claims, ok := token.Claims.(*Claims)
-	if !ok {
-		return nil, jwt.ErrTokenMalformed
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid token")
 	}
 
 	return claims, nil
-}
-
-func GenerateRefreshToken() (string, error) {
-	return uuid.NewString(), nil
 }

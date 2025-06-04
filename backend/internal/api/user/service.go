@@ -1,10 +1,10 @@
+// internal/api/user/service.go
 package user
 
 import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
 	"veza-web-app/internal/utils/auth"
 )

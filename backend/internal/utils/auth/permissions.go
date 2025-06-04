@@ -3,7 +3,6 @@
 package auth
 
 import (
-	"context"
 	"net/http"
 	"veza-web-app/internal/constants"
 	"veza-web-app/internal/utils/response"

@@ -1,4 +1,4 @@
-// internal/config/config.go (Enhanced)
+// internal/config/config.go
 package config
 
 import (
@@ -11,9 +11,6 @@ type Config struct {
     Server   ServerConfig
     Database DatabaseConfig
     JWT      JWTConfig
-    Redis    RedisConfig
-    S3       S3Config
-    CORS     CORSConfig
 }
 
 type ServerConfig struct {
@@ -25,6 +22,7 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
+    URL          string
     Host         string
     Port         string
     Username     string
@@ -42,8 +40,8 @@ type JWTConfig struct {
     RefreshTime    time.Duration
 }
 
-func LoadConfig() (*Config, error) {
-    config := &Config{
+func New() *Config {
+    return &Config{
         Server: ServerConfig{
             Port:            getEnv("PORT", "8080"),
             ReadTimeout:     getDurationEnv("READ_TIMEOUT", 10*time.Second),
@@ -52,6 +50,7 @@ func LoadConfig() (*Config, error) {
             Environment:     getEnv("ENVIRONMENT", "development"),
         },
         Database: DatabaseConfig{
+            URL:          getEnv("DATABASE_URL", ""),
             Host:         getEnv("DB_HOST", "localhost"),
             Port:         getEnv("DB_PORT", "5432"),
             Username:     getEnv("DB_USERNAME", "postgres"),
@@ -68,8 +67,6 @@ func LoadConfig() (*Config, error) {
             RefreshTime:    getDurationEnv("JWT_REFRESH_TIME", 7*24*time.Hour),
         },
     }
-    
-    return config, nil
 }
 
 func getEnv(key, defaultValue string) string {
