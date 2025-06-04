@@ -11,6 +11,13 @@
 │   │   └── MIGRATION.md
 │   ├── go.mod
 │   ├── go.sum
+│   ├── handlers
+│   │   ├── admin_categories.go
+│   │   ├── listing.go
+│   │   ├── offer.go
+│   │   ├── products.go
+│   │   ├── user.go
+│   │   └── user_products.go
 │   ├── internal
 │   │   ├── admin
 │   │   │   ├── handlers
@@ -27,8 +34,10 @@
 │   │   │   ├── exchange
 │   │   │   │   └── service.go
 │   │   │   ├── file
-│   │   │   │   ├── handler.go
-│   │   │   │   ├── model.go
+│   │   │   │   ├── handlers
+│   │   │   │   │   └── handler.go
+│   │   │   │   ├── models
+│   │   │   │   │   └── model.go
 │   │   │   │   └── service.go
 │   │   │   ├── formation
 │   │   │   │   └── service.go
@@ -88,6 +97,7 @@
 │   │   ├── config
 │   │   │   └── config.go
 │   │   ├── constants
+│   │   │   ├── constants.go
 │   │   │   └── roles.go
 │   │   ├── database
 │   │   │   ├── connection.go
@@ -113,13 +123,15 @@
 │   │   │       └── product.go
 │   │   └── utils
 │   │       ├── auth
-│   │       │   ├── hash.go
 │   │       │   ├── jwt.go
 │   │       │   └── permissions.go
 │   │       ├── files
 │   │       │   └── signedurl.go
+│   │       ├── hash
+│   │       │   └── hash.go
 │   │       ├── response
-│   │       │   └── json.go
+│   │       │   ├── json.go
+│   │       │   └── response.go
 │   │       └── validation
 │   │           ├── hash.go
 │   │           └── signedurl.go
@@ -153,7 +165,15 @@
 │   ├── pkg
 │   │   ├── cache
 │   │   ├── logger
+│   │   │   └── logger.go
 │   │   └── validator
+│   │       └── validator.go
+│   ├── routes
+│   │   ├── exchange.go
+│   │   ├── listing.go
+│   │   ├── offer.go
+│   │   ├── products.go
+│   │   └── user_products.go
 │   ├── run.sh
 │   ├── scripts
 │   │   └── test-migration.sh
@@ -264,4 +284,4 @@
 ├── veza-dev.sh
 └── veza-web-app_tree.msg
 
-93 directories, 172 files
+98 directories, 187 files

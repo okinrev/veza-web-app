@@ -4,10 +4,10 @@ package handlers
 
 import (
     "net/http"
-    "veza-backend/internal/admin/services"
-    "veza-backend/internal/models/admin"  // Fix: Remove quotes and leading slash
-    "veza-backend/internal/utils/response"
-    "veza-backend/pkg/logger"
+    "veza-web-app/internal/admin/services"
+    "veza-web-app/internal/models/admin"
+    "veza-web-app/internal/utils/response"
+    "veza-web-app/pkg/logger"
     
     "github.com/gin-gonic/gin"
 )
