@@ -1,108 +1,271 @@
+//file: internal/admin/handlers/products.go
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
-	"strconv"
-	
-	"github.com/gorilla/mux"
-	"veza-backend/internal/utils/response"
-	"veza-backend/db"
-	"veza-backend/models"
+   "encoding/json"
+   "net/http"
+   "strconv"
+   
+   "github.com/gorilla/mux"
+   "veza-backend/internal/admin/services"
+   "veza-backend/internal/models/admin"
+   "veza-backend/internal/utils/response"
+   "veza-backend/pkg/logger"
 )
 
-type ProductHandler struct{}
-
-func NewProductHandler() *ProductHandler {
-	return &ProductHandler{}
+type ProductHandler struct {
+   service *services.ProductService
+   logger  *logger.Logger
 }
 
-// Adaptation temporaire des handlers existants avec les nouvelles réponses
+func NewProductHandler(service *services.ProductService, logger *logger.Logger) *ProductHandler {
+   return &ProductHandler{
+   	service: service,
+   	logger:  logger,
+   }
+}
+
+// GetProducts récupère tous les produits avec filtres et pagination
 func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
-	var products []models.Product
-	err := db.DB.Select(&products, `
-		SELECT p.id, p.name, 
-		       COALESCE(c.name, '') as category_name,
-		       COALESCE(doc_count.count, 0) as documentation_count,
-		       COALESCE(user_count.count, 0) as user_count
-		FROM products p
-		LEFT JOIN categories c ON p.category_id = c.id
-		LEFT JOIN (
-			SELECT product_id, COUNT(*) as count 
-			FROM product_documents 
-			GROUP BY product_id
-		) doc_count ON p.id = doc_count.product_id
-		LEFT JOIN (
-			SELECT product_id, COUNT(*) as count 
-			FROM user_products 
-			GROUP BY product_id
-		) user_count ON p.id = user_count.product_id
-		ORDER BY p.id DESC
-	`)
-	
-	if err != nil {
-		response.ErrorJSON(w, "Erreur lors de la récupération des produits", http.StatusInternalServerError)
-		return
-	}
-
-	response.SuccessJSON(w, products, "Produits récupérés avec succès")
+   ctx := r.Context()
+   
+   // Parse query parameters
+   query := r.URL.Query()
+   page, _ := strconv.Atoi(query.Get("page"))
+   limit, _ := strconv.Atoi(query.Get("limit"))
+   
+   // Filtres
+   filters := make(map[string]interface{})
+   if category := query.Get("category"); category != "" {
+   	categoryID, err := strconv.ParseInt(category, 10, 64)
+   	if err == nil {
+   		filters["category_id"] = categoryID
+   	}
+   }
+   if status := query.Get("status"); status != "" {
+   	filters["status"] = status
+   }
+   if search := query.Get("search"); search != "" {
+   	filters["search"] = search
+   }
+   if brand := query.Get("brand"); brand != "" {
+   	filters["brand"] = brand
+   }
+   
+   products, total, err := h.service.GetAllProducts(ctx, filters, page, limit)
+   if err != nil {
+   	h.logger.Error("Failed to get products", "error", err)
+   	response.ErrorJSON(w, "Failed to retrieve products", http.StatusInternalServerError)
+   	return
+   }
+   
+   // Métadonnées de pagination
+   if limit == 0 {
+   	limit = 20
+   }
+   totalPages := (total + limit - 1) / limit
+   
+   meta := &response.Meta{
+   	Page:       page,
+   	PerPage:    limit,
+   	Total:      total,
+   	TotalPages: totalPages,
+   }
+   
+   response.PaginatedJSON(w, products, meta, "Products retrieved successfully")
 }
 
+// GetProduct récupère un produit par ID
+func (h *ProductHandler) GetProduct(w http.ResponseWriter, r *http.Request) {
+   ctx := r.Context()
+   vars := mux.Vars(r)
+   
+   id, err := strconv.ParseInt(vars["id"], 10, 64)
+   if err != nil {
+   	response.ErrorJSON(w, "Invalid product ID", http.StatusBadRequest)
+   	return
+   }
+   
+   product, err := h.service.GetProductByID(ctx, id)
+   if err != nil {
+   	h.logger.Error("Failed to get product", "id", id, "error", err)
+   	response.ErrorJSON(w, "Product not found", http.StatusNotFound)
+   	return
+   }
+   
+   response.SuccessJSON(w, product, "Product retrieved successfully")
+}
+
+// CreateProduct crée un nouveau produit
 func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
-	var p models.Product
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		response.ErrorJSON(w, "Requête invalide", http.StatusBadRequest)
-		return
-	}
-
-	err := db.DB.QueryRowx(`
-		INSERT INTO products (name) VALUES ($1) RETURNING id
-	`, p.Name).Scan(&p.ID)
-
-	if err != nil {
-		response.ErrorJSON(w, "Erreur lors de la création", http.StatusInternalServerError)
-		return
-	}
-
-	response.SuccessJSON(w, p, "Produit créé avec succès")
+   ctx := r.Context()
+   
+   var req admin.CreateProductRequest
+   if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+   	response.ErrorJSON(w, "Invalid request body", http.StatusBadRequest)
+   	return
+   }
+   
+   product, err := h.service.CreateProduct(ctx, &req)
+   if err != nil {
+   	h.logger.Error("Failed to create product", "error", err)
+   	response.ErrorJSON(w, err.Error(), http.StatusBadRequest)
+   	return
+   }
+   
+   h.logger.Info("Product created successfully", "id", product.ID, "name", product.Name)
+   response.SuccessJSON(w, product, "Product created successfully")
 }
 
+// UpdateProduct met à jour un produit
 func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		response.ErrorJSON(w, "ID invalide", http.StatusBadRequest)
-		return
-	}
-
-	var p models.Product
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		response.ErrorJSON(w, "Requête invalide", http.StatusBadRequest)
-		return
-	}
-
-	_, err = db.DB.Exec(`UPDATE products SET name = $1 WHERE id = $2`, p.Name, id)
-	if err != nil {
-		response.ErrorJSON(w, "Erreur lors de la mise à jour", http.StatusInternalServerError)
-		return
-	}
-
-	response.SuccessJSON(w, nil, "Produit mis à jour avec succès")
+   ctx := r.Context()
+   vars := mux.Vars(r)
+   
+   id, err := strconv.ParseInt(vars["id"], 10, 64)
+   if err != nil {
+   	response.ErrorJSON(w, "Invalid product ID", http.StatusBadRequest)
+   	return
+   }
+   
+   var req admin.UpdateProductRequest
+   if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+   	response.ErrorJSON(w, "Invalid request body", http.StatusBadRequest)
+   	return
+   }
+   
+   product, err := h.service.UpdateProduct(ctx, id, &req)
+   if err != nil {
+   	h.logger.Error("Failed to update product", "id", id, "error", err)
+   	response.ErrorJSON(w, err.Error(), http.StatusBadRequest)
+   	return
+   }
+   
+   h.logger.Info("Product updated successfully", "id", id)
+   response.SuccessJSON(w, product, "Product updated successfully")
 }
 
+// DeleteProduct supprime un produit
 func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		response.ErrorJSON(w, "ID invalide", http.StatusBadRequest)
-		return
-	}
+   ctx := r.Context()
+   vars := mux.Vars(r)
+   
+   id, err := strconv.ParseInt(vars["id"], 10, 64)
+   if err != nil {
+   	response.ErrorJSON(w, "Invalid product ID", http.StatusBadRequest)
+   	return
+   }
+   
+   err = h.service.DeleteProduct(ctx, id)
+   if err != nil {
+   	h.logger.Error("Failed to delete product", "id", id, "error", err)
+   	response.ErrorJSON(w, err.Error(), http.StatusBadRequest)
+   	return
+   }
+   
+   h.logger.Info("Product deleted successfully", "id", id)
+   response.SuccessJSON(w, nil, "Product deleted successfully")
+}
 
-	_, err = db.DB.Exec("DELETE FROM products WHERE id = $1", id)
-	if err != nil {
-		response.ErrorJSON(w, "Erreur lors de la suppression", http.StatusInternalServerError)
-		return
-	}
+// DuplicateProduct duplique un produit existant
+func (h *ProductHandler) DuplicateProduct(w http.ResponseWriter, r *http.Request) {
+   ctx := r.Context()
+   vars := mux.Vars(r)
+   
+   id, err := strconv.ParseInt(vars["id"], 10, 64)
+   if err != nil {
+   	response.ErrorJSON(w, "Invalid product ID", http.StatusBadRequest)
+   	return
+   }
+   
+   product, err := h.service.DuplicateProduct(ctx, id)
+   if err != nil {
+   	h.logger.Error("Failed to duplicate product", "id", id, "error", err)
+   	response.ErrorJSON(w, err.Error(), http.StatusBadRequest)
+   	return
+   }
+   
+   h.logger.Info("Product duplicated successfully", "original_id", id, "new_id", product.ID)
+   response.SuccessJSON(w, product, "Product duplicated successfully")
+}
 
-	response.SuccessJSON(w, nil, "Produit supprimé avec succès")
+// GetProductAnalytics récupère les analytics d'un produit
+func (h *ProductHandler) GetProductAnalytics(w http.ResponseWriter, r *http.Request) {
+   ctx := r.Context()
+   vars := mux.Vars(r)
+   
+   id, err := strconv.ParseInt(vars["id"], 10, 64)
+   if err != nil {
+   	response.ErrorJSON(w, "Invalid product ID", http.StatusBadRequest)
+   	return
+   }
+   
+   analytics, err := h.service.GetProductAnalytics(ctx, id)
+   if err != nil {
+   	h.logger.Error("Failed to get product analytics", "id", id, "error", err)
+   	response.ErrorJSON(w, "Failed to retrieve analytics", http.StatusInternalServerError)
+   	return
+   }
+   
+   response.SuccessJSON(w, analytics, "Analytics retrieved successfully")
+}
+
+// BulkUpdateProducts met à jour plusieurs produits à la fois
+func (h *ProductHandler) BulkUpdateProducts(w http.ResponseWriter, r *http.Request) {
+   ctx := r.Context()
+   
+   var req struct {
+   	ProductIDs []int64                    `json:"product_ids" validate:"required,min=1"`
+   	Updates    admin.UpdateProductRequest `json:"updates"`
+   }
+   
+   if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+   	response.ErrorJSON(w, "Invalid request body", http.StatusBadRequest)
+   	return
+   }
+   
+   if len(req.ProductIDs) == 0 {
+   	response.ErrorJSON(w, "Product IDs are required", http.StatusBadRequest)
+   	return
+   }
+   
+   results, err := h.service.BulkUpdateProducts(ctx, req.ProductIDs, &req.Updates)
+   if err != nil {
+   	h.logger.Error("Failed to bulk update products", "error", err)
+   	response.ErrorJSON(w, err.Error(), http.StatusBadRequest)
+   	return
+   }
+   
+   h.logger.Info("Bulk update completed", "updated_count", len(results))
+   response.SuccessJSON(w, results, "Products updated successfully")
+}
+
+// ExportProducts exporte les produits en CSV
+func (h *ProductHandler) ExportProducts(w http.ResponseWriter, r *http.Request) {
+   ctx := r.Context()
+   
+   // Parse query parameters pour les filtres
+   query := r.URL.Query()
+   filters := make(map[string]interface{})
+   
+   if category := query.Get("category"); category != "" {
+   	categoryID, err := strconv.ParseInt(category, 10, 64)
+   	if err == nil {
+   		filters["category_id"] = categoryID
+   	}
+   }
+   if status := query.Get("status"); status != "" {
+   	filters["status"] = status
+   }
+   
+   csvData, err := h.service.ExportProducts(ctx, filters)
+   if err != nil {
+   	h.logger.Error("Failed to export products", "error", err)
+   	response.ErrorJSON(w, "Failed to export products", http.StatusInternalServerError)
+   	return
+   }
+   
+   w.Header().Set("Content-Type", "text/csv")
+   w.Header().Set("Content-Disposition", "attachment; filename=products.csv")
+   w.Write(csvData)
 }

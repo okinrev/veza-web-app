@@ -1,3 +1,5 @@
+//file: internal/utils/auth/permissions.go
+
 package auth
 
 import (
@@ -7,6 +9,7 @@ import (
 	"veza-backend/internal/utils/response"
 )
 
+// HasPermission vérifie si un utilisateur a une permission spécifique
 func HasPermission(userRole constants.Role, permission constants.Permission) bool {
 	permissions, exists := constants.RolePermissions[userRole]
 	if !exists {
@@ -21,6 +24,7 @@ func HasPermission(userRole constants.Role, permission constants.Permission) boo
 	return false
 }
 
+// RequirePermission middleware pour vérifier les permissions
 func RequirePermission(permission constants.Permission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +44,7 @@ func RequirePermission(permission constants.Permission) func(http.Handler) http.
 	}
 }
 
+// RequireAdmin middleware pour les routes admin
 func RequireAdmin() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

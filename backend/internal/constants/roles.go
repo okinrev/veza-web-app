@@ -1,9 +1,12 @@
+//file: internal/constants/roles.go
+
 package constants
 
 type Role string
 type Permission string
 
 const (
+	// Rôles
 	RoleUser       Role = "user"
 	RoleAdmin      Role = "admin"
 	RoleSuperAdmin Role = "super_admin"
@@ -11,18 +14,30 @@ const (
 )
 
 const (
+	// Permissions produits
 	PermReadProducts   Permission = "products:read"
 	PermWriteProducts  Permission = "products:write"
 	PermDeleteProducts Permission = "products:delete"
-	PermReadCategories Permission = "categories:read"
-	PermWriteCategories Permission = "categories:write"
+	
+	// Permissions catégories
+	PermReadCategories   Permission = "categories:read"
+	PermWriteCategories  Permission = "categories:write"
 	PermDeleteCategories Permission = "categories:delete"
-	PermReadUsers      Permission = "users:read"
-	PermWriteUsers     Permission = "users:write"
-	PermDeleteUsers    Permission = "users:delete"
-	PermReadAnalytics  Permission = "analytics:read"
+	
+	// Permissions utilisateurs
+	PermReadUsers   Permission = "users:read"
+	PermWriteUsers  Permission = "users:write"
+	PermDeleteUsers Permission = "users:delete"
+	
+	// Permissions analytics
+	PermReadAnalytics Permission = "analytics:read"
+	
+	// Permissions fichiers
+	PermUploadFiles Permission = "files:upload"
+	PermDeleteFiles Permission = "files:delete"
 )
 
+// RolePermissions définit les permissions par rôle
 var RolePermissions = map[Role][]Permission{
 	RoleUser: {
 		PermReadProducts,
@@ -31,17 +46,20 @@ var RolePermissions = map[Role][]Permission{
 		PermReadProducts, PermWriteProducts,
 		PermReadCategories,
 		PermReadUsers,
+		PermUploadFiles,
 	},
 	RoleAdmin: {
 		PermReadProducts, PermWriteProducts, PermDeleteProducts,
 		PermReadCategories, PermWriteCategories, PermDeleteCategories,
 		PermReadUsers, PermWriteUsers,
 		PermReadAnalytics,
+		PermUploadFiles, PermDeleteFiles,
 	},
 	RoleSuperAdmin: {
 		PermReadProducts, PermWriteProducts, PermDeleteProducts,
 		PermReadCategories, PermWriteCategories, PermDeleteCategories,
 		PermReadUsers, PermWriteUsers, PermDeleteUsers,
 		PermReadAnalytics,
+		PermUploadFiles, PermDeleteFiles,
 	},
 }
