@@ -26,5 +26,5 @@ go.work.sum
 target/
 *.zip
 tree.txt
-
+all/
 bin/
