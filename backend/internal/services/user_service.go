@@ -1,389 +1,348 @@
-// internal/api/user/service.go
-package user
+// internal/services/user_service.go
+package services
 
 import (
-	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
-	"veza-web-app/internal/utils/auth"
+	"veza-web-app/internal/database"
+	"veza-web-app/internal/models"
+	"veza-web-app/internal/utils"
 )
 
-// Service handles user business logic
-type Service struct {
-	db *sql.DB
+type UserService interface {
+	GetMe(userID int) (*models.User, error)
+	UpdateMe(userID int, req UpdateUserRequest) (*models.User, error)
+	ChangePassword(userID int, req ChangePasswordRequest) error
+	GetUsers(page, limit int, search string) ([]models.User, int, error)
+	GetUsersExceptMe(userID, limit int, search string) ([]models.User, error)
+	SearchUsers(query string, limit int) ([]models.User, error)
+	GetUserByID(userID int) (*models.User, error)
+	GetUserAvatar(userID int) (*string, error)
+	UpdateUserAvatar(userID int, avatarURL string) error
+	DeleteUserAvatar(userID int) error
 }
 
-// NewService creates a new user service
-func NewService(db *sql.DB) *Service {
-	return &Service{
-		db: db,
-	}
+type userService struct {
+	db *database.DB
 }
 
-// GetUsers retrieves users with pagination and optional search
-func (s *Service) GetUsers(page, limit int, search string) ([]UserResponse, int, error) {
-	offset := (page - 1) * limit
-	
-	// Build the query with optional search
-	baseQuery := `
-		SELECT id, email, first_name, last_name, username, avatar, bio, 
-			   role, is_active, is_verified, last_login_at, created_at, updated_at
-		FROM users
-	`
-	countQuery := "SELECT COUNT(*) FROM users"
-	
-	var whereClause string
-	var args []interface{}
-	argIndex := 1
-	
-	if search != "" {
-		whereClause = ` WHERE (
-			email ILIKE $` + fmt.Sprintf("%d", argIndex) + ` OR 
-			first_name ILIKE $` + fmt.Sprintf("%d", argIndex) + ` OR 
-			last_name ILIKE $` + fmt.Sprintf("%d", argIndex) + ` OR 
-			username ILIKE $` + fmt.Sprintf("%d", argIndex) + `
-		)`
-		args = append(args, "%"+search+"%")
-		argIndex++
-	}
-	
-	// Get total count
-	var total int
-	err := s.db.QueryRow(countQuery + whereClause, args...).Scan(&total)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count users: %w", err)
-	}
-	
-	// Get users
-	orderClause := " ORDER BY created_at DESC"
-	limitClause := fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
-	args = append(args, limit, offset)
-	
-	query := baseQuery + whereClause + orderClause + limitClause
-	rows, err := s.db.Query(query, args...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to query users: %w", err)
-	}
-	defer rows.Close()
-	
-	var users []UserResponse
-	for rows.Next() {
-		var user UserResponse
-		err := rows.Scan(
-			&user.ID, &user.Email, &user.FirstName, &user.LastName,
-			&user.Username, &user.Avatar, &user.Bio, &user.Role,
-			&user.IsActive, &user.IsVerified, &user.LastLoginAt,
-			&user.CreatedAt, &user.UpdatedAt,
-		)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
-		}
-		users = append(users, user)
-	}
-	
-	return users, total, nil
+func NewUserService(db *database.DB) UserService {
+	return &userService{db: db}
 }
 
-// GetUserByID retrieves a user by ID
-func (s *Service) GetUserByID(userID int) (*UserResponse, error) {
-	query := `
-		SELECT id, email, first_name, last_name, username, avatar, bio,
-			   role, is_active, is_verified, last_login_at, created_at, updated_at
-		FROM users 
-		WHERE id = $1 AND is_active = true
-	`
-	
-	var user UserResponse
-	err := s.db.QueryRow(query, userID).Scan(
-		&user.ID, &user.Email, &user.FirstName, &user.LastName,
-		&user.Username, &user.Avatar, &user.Bio, &user.Role,
-		&user.IsActive, &user.IsVerified, &user.LastLoginAt,
+// Request types
+type UpdateUserRequest struct {
+	Username  *string `json:"username,omitempty"`
+	Email     *string `json:"email,omitempty"`
+	FirstName *string `json:"first_name,omitempty"`
+	LastName  *string `json:"last_name,omitempty"`
+	Bio       *string `json:"bio,omitempty"`
+	Avatar    *string `json:"avatar,omitempty"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required"`
+	NewPassword     string `json:"new_password" validate:"required,min=8"`
+}
+
+// GetMe returns the current user's profile
+func (s *userService) GetMe(userID int) (*models.User, error) {
+	var user models.User
+	err := s.db.QueryRow(`
+		SELECT id, username, email, first_name, last_name, bio, avatar, role, created_at, updated_at
+		FROM users WHERE id = $1 AND role != 'deleted'
+	`, userID).Scan(
+		&user.ID, &user.Username, &user.Email, &user.FirstName, 
+		&user.LastName, &user.Bio, &user.Avatar, &user.Role,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
-	
+
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user not found")
-		}
-		return nil, fmt.Errorf("failed to get user: %w", err)
+		return nil, fmt.Errorf("user not found: %w", err)
 	}
-	
+
 	return &user, nil
 }
 
-// GetUserByEmail retrieves a user by email (includes password hash for auth)
-func (s *Service) GetUserByEmail(email string) (*User, error) {
-	query := `
-		SELECT id, email, password_hash, first_name, last_name, username, 
-			   avatar, bio, role, is_active, is_verified, last_login_at, 
-			   created_at, updated_at
-		FROM users 
-		WHERE email = $1
-	`
-	
-	var user User
-	err := s.db.QueryRow(query, email).Scan(
-		&user.ID, &user.Email, &user.Password, &user.FirstName,
-		&user.LastName, &user.Username, &user.Avatar, &user.Bio,
-		&user.Role, &user.IsActive, &user.IsVerified, &user.LastLoginAt,
-		&user.CreatedAt, &user.UpdatedAt,
-	)
-	
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user not found")
-		}
-		return nil, fmt.Errorf("failed to get user: %w", err)
-	}
-	
-	return &user, nil
-}
-
-// CreateUser creates a new user
-func (s *Service) CreateUser(req CreateUserRequest) (*UserResponse, error) {
-	// Hash the password
-	passwordHash, err := auth.HashPassword(req.Password)
-	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", err)
-	}
-	
-	// Set default role if not provided
-	role := req.Role
-	if role == "" {
-		role = "user"
-	}
-	
-	query := `
-		INSERT INTO users (email, password_hash, first_name, last_name, username, role, is_active, is_verified, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, true, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		RETURNING id, email, first_name, last_name, username, role, is_active, is_verified, created_at, updated_at
-	`
-	
-	var user UserResponse
-	err = s.db.QueryRow(
-		query, req.Email, passwordHash, req.FirstName, req.LastName, 
-		req.Username, role,
-	).Scan(
-		&user.ID, &user.Email, &user.FirstName, &user.LastName,
-		&user.Username, &user.Role, &user.IsActive, &user.IsVerified,
-		&user.CreatedAt, &user.UpdatedAt,
-	)
-	
-	if err != nil {
-		if strings.Contains(err.Error(), "unique") {
-			return nil, fmt.Errorf("email already exists")
-		}
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-	
-	return &user, nil
-}
-
-// UpdateUser updates an existing user
-func (s *Service) UpdateUser(userID int, req UpdateUserRequest) (*UserResponse, error) {
+// UpdateMe updates the current user's profile
+func (s *userService) UpdateMe(userID int, req UpdateUserRequest) (*models.User, error) {
 	// Build dynamic update query
-	setParts := []string{"updated_at = CURRENT_TIMESTAMP"}
+	setParts := []string{"updated_at = NOW()"}
 	args := []interface{}{}
-	argIndex := 1
-	
-	if req.FirstName != nil {
-		setParts = append(setParts, fmt.Sprintf("first_name = $%d", argIndex))
-		args = append(args, req.FirstName)
-		argIndex++
-	}
-	
-	if req.LastName != nil {
-		setParts = append(setParts, fmt.Sprintf("last_name = $%d", argIndex))
-		args = append(args, req.LastName)
-		argIndex++
-	}
-	
+	argCount := 1
+
 	if req.Username != nil {
-		setParts = append(setParts, fmt.Sprintf("username = $%d", argIndex))
-		args = append(args, req.Username)
-		argIndex++
+		setParts = append(setParts, "username = $"+strconv.Itoa(argCount))
+		args = append(args, strings.TrimSpace(*req.Username))
+		argCount++
 	}
-	
-	if req.Avatar != nil {
-		setParts = append(setParts, fmt.Sprintf("avatar = $%d", argIndex))
-		args = append(args, req.Avatar)
-		argIndex++
+	if req.Email != nil {
+		setParts = append(setParts, "email = $"+strconv.Itoa(argCount))
+		args = append(args, strings.TrimSpace(strings.ToLower(*req.Email)))
+		argCount++
 	}
-	
+	if req.FirstName != nil {
+		setParts = append(setParts, "first_name = $"+strconv.Itoa(argCount))
+		args = append(args, req.FirstName)
+		argCount++
+	}
+	if req.LastName != nil {
+		setParts = append(setParts, "last_name = $"+strconv.Itoa(argCount))
+		args = append(args, req.LastName)
+		argCount++
+	}
 	if req.Bio != nil {
-		setParts = append(setParts, fmt.Sprintf("bio = $%d", argIndex))
+		setParts = append(setParts, "bio = $"+strconv.Itoa(argCount))
 		args = append(args, req.Bio)
-		argIndex++
+		argCount++
 	}
-	
-	if req.IsActive != nil {
-		setParts = append(setParts, fmt.Sprintf("is_active = $%d", argIndex))
-		args = append(args, req.IsActive)
-		argIndex++
+	if req.Avatar != nil {
+		setParts = append(setParts, "avatar = $"+strconv.Itoa(argCount))
+		args = append(args, req.Avatar)
+		argCount++
 	}
-	
-	if req.IsVerified != nil {
-		setParts = append(setParts, fmt.Sprintf("is_verified = $%d", argIndex))
-		args = append(args, req.IsVerified)
-		argIndex++
+
+	if len(setParts) == 1 { // Only updated_at
+		return nil, fmt.Errorf("no fields to update")
 	}
-	
-	if req.Role != nil {
-		setParts = append(setParts, fmt.Sprintf("role = $%d", argIndex))
-		args = append(args, req.Role)
-		argIndex++
-	}
-	
+
 	// Add user ID as the last argument
 	args = append(args, userID)
-	
-	query := fmt.Sprintf(`
-		UPDATE users 
-		SET %s
-		WHERE id = $%d
-		RETURNING id, email, first_name, last_name, username, avatar, bio,
-				  role, is_active, is_verified, last_login_at, created_at, updated_at
-	`, strings.Join(setParts, ", "), argIndex)
-	
-	var user UserResponse
-	err := s.db.QueryRow(query, args...).Scan(
-		&user.ID, &user.Email, &user.FirstName, &user.LastName,
-		&user.Username, &user.Avatar, &user.Bio, &user.Role,
-		&user.IsActive, &user.IsVerified, &user.LastLoginAt,
-		&user.CreatedAt, &user.UpdatedAt,
-	)
-	
+
+	query := "UPDATE users SET " + strings.Join(setParts, ", ") + " WHERE id = $" + strconv.Itoa(argCount)
+
+	_, err := s.db.Exec(query, args...)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user not found")
+		if strings.Contains(err.Error(), "duplicate") {
+			return nil, fmt.Errorf("username or email already exists")
 		}
-		return nil, fmt.Errorf("failed to update user: %w", err)
+		return nil, fmt.Errorf("failed to update profile: %w", err)
 	}
-	
-	return &user, nil
+
+	// Return updated user
+	return s.GetMe(userID)
 }
 
-// DeleteUser soft deletes a user (sets is_active to false)
-func (s *Service) DeleteUser(userID int) error {
-	query := `
-		UPDATE users 
-		SET is_active = false, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1 AND is_active = true
-	`
-	
-	result, err := s.db.Exec(query, userID)
+// ChangePassword changes the user's password
+func (s *userService) ChangePassword(userID int, req ChangePasswordRequest) error {
+	// Get current password hash
+	var currentHash string
+	err := s.db.QueryRow("SELECT password_hash FROM users WHERE id = $1 AND role != 'deleted'", userID).Scan(&currentHash)
 	if err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
-	
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	
-	if rowsAffected == 0 {
 		return fmt.Errorf("user not found")
 	}
-	
-	return nil
-}
 
-// UpdateLastLogin updates the user's last login timestamp
-func (s *Service) UpdateLastLogin(userID int) error {
-	query := `
-		UPDATE users 
-		SET last_login_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1
-	`
-	
-	_, err := s.db.Exec(query, userID)
-	if err != nil {
-		return fmt.Errorf("failed to update last login: %w", err)
-	}
-	
-	return nil
-}
-
-// ChangePassword updates a user's password
-func (s *Service) ChangePassword(userID int, currentPassword, newPassword string) error {
-	// First, get the current password hash
-	var currentHash string
-	err := s.db.QueryRow("SELECT password_hash FROM users WHERE id = $1", userID).Scan(&currentHash)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("user not found")
-		}
-		return fmt.Errorf("failed to get user password: %w", err)
-	}
-	
 	// Verify current password
-	if !auth.CheckPasswordHash(currentPassword, currentHash) {
+	if err := utils.CheckPasswordHash(req.CurrentPassword, currentHash); err != nil {
 		return fmt.Errorf("current password is incorrect")
 	}
-	
+
 	// Hash new password
-	newHash, err := auth.HashPassword(newPassword)
+	newHash, err := utils.HashPassword(req.NewPassword)
 	if err != nil {
-		return fmt.Errorf("failed to hash new password: %w", err)
+		return fmt.Errorf("failed to process new password: %w", err)
 	}
-	
+
 	// Update password
-	query := `
-		UPDATE users 
-		SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $2
-	`
-	
-	_, err = s.db.Exec(query, newHash, userID)
+	_, err = s.db.Exec("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2", newHash, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
-	
+
 	return nil
 }
 
-// GetUserStats returns basic user statistics
-func (s *Service) GetUserStats() (map[string]interface{}, error) {
-	stats := make(map[string]interface{})
-	
-	// Total users
-	var totalUsers int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE is_active = true").Scan(&totalUsers)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get total users: %w", err)
+// GetUsers returns a paginated list of users
+func (s *userService) GetUsers(page, limit int, search string) ([]models.User, int, error) {
+	if page < 1 {
+		page = 1
 	}
-	stats["total_users"] = totalUsers
-	
-	// Verified users
-	var verifiedUsers int
-	err = s.db.QueryRow("SELECT COUNT(*) FROM users WHERE is_active = true AND is_verified = true").Scan(&verifiedUsers)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get verified users: %w", err)
+	if limit < 1 || limit > 100 {
+		limit = 20
 	}
-	stats["verified_users"] = verifiedUsers
+
+	offset := (page - 1) * limit
+
+	// Build search query
+	baseQuery := `
+		SELECT id, username, email, first_name, last_name, bio, avatar, role, created_at, updated_at
+		FROM users
+		WHERE role != 'deleted'
+	`
+	countQuery := "SELECT COUNT(*) FROM users WHERE role != 'deleted'"
 	
-	// Active users (logged in within last 30 days)
-	var activeUsers int
-	err = s.db.QueryRow(`
-		SELECT COUNT(*) FROM users 
-		WHERE is_active = true AND last_login_at > CURRENT_TIMESTAMP - INTERVAL '30 days'
-	`).Scan(&activeUsers)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get active users: %w", err)
+	args := []interface{}{}
+	argCount := 1
+	
+	if search != "" {
+		searchClause := " AND (username ILIKE $" + strconv.Itoa(argCount) + " OR email ILIKE $" + strconv.Itoa(argCount) + 
+			" OR first_name ILIKE $" + strconv.Itoa(argCount) + " OR last_name ILIKE $" + strconv.Itoa(argCount) + ")"
+		baseQuery += searchClause
+		countQuery += searchClause
+		args = append(args, "%"+search+"%")
+		argCount++
 	}
-	stats["active_users"] = activeUsers
-	
-	// New users this month
-	var newUsersThisMonth int
-	err = s.db.QueryRow(`
-		SELECT COUNT(*) FROM users 
-		WHERE is_active = true AND created_at >= date_trunc('month', CURRENT_TIMESTAMP)
-	`).Scan(&newUsersThisMonth)
+
+	// Get total count
+	var total int
+	err := s.db.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get new users this month: %w", err)
+		return nil, 0, fmt.Errorf("failed to count users: %w", err)
 	}
-	stats["new_users_this_month"] = newUsersThisMonth
+
+	// Get users
+	orderClause := " ORDER BY created_at DESC LIMIT $" + strconv.Itoa(argCount) + " OFFSET $" + strconv.Itoa(argCount+1)
+	args = append(args, limit, offset)
+
+	rows, err := s.db.Query(baseQuery+orderClause, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to retrieve users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(
+			&user.ID, &user.Username, &user.Email, &user.FirstName, &user.LastName,
+			&user.Bio, &user.Avatar, &user.Role, &user.CreatedAt, &user.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+		users = append(users, user)
+	}
+
+	return users, total, nil
+}
+
+// GetUsersExceptMe returns all users except current user (for chat)
+func (s *userService) GetUsersExceptMe(userID, limit int, search string) ([]models.User, error) {
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+
+	baseQuery := `
+		SELECT id, username, email, first_name, last_name, avatar, role, created_at
+		FROM users 
+		WHERE id != $1 AND role != 'deleted'
+	`
 	
-	return stats, nil
+	args := []interface{}{userID}
+	argCount := 2
+
+	if search != "" {
+		baseQuery += " AND (username ILIKE $" + strconv.Itoa(argCount) + " OR first_name ILIKE $" + strconv.Itoa(argCount) + " OR last_name ILIKE $" + strconv.Itoa(argCount) + ")"
+		args = append(args, "%"+search+"%")
+		argCount++
+	}
+
+	baseQuery += " ORDER BY username ASC LIMIT $" + strconv.Itoa(argCount)
+	args = append(args, limit)
+
+	rows, err := s.db.Query(baseQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(
+			&user.ID, &user.Username, &user.Email, &user.FirstName, 
+			&user.LastName, &user.Avatar, &user.Role, &user.CreatedAt,
+		)
+		if err != nil {
+			continue
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+// SearchUsers searches for users
+func (s *userService) SearchUsers(query string, limit int) ([]models.User, error) {
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+
+	rows, err := s.db.Query(`
+		SELECT id, username, email, first_name, last_name, bio, avatar, role, created_at, updated_at
+		FROM users 
+		WHERE (username ILIKE $1 OR email ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1)
+		  AND role != 'deleted'
+		ORDER BY username ASC
+		LIMIT $2
+	`, "%"+query+"%", limit)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to search users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(
+			&user.ID, &user.Username, &user.Email, &user.FirstName, &user.LastName,
+			&user.Bio, &user.Avatar, &user.Role, &user.CreatedAt, &user.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+// GetUserByID returns a specific user by ID
+func (s *userService) GetUserByID(userID int) (*models.User, error) {
+	var user models.User
+	err := s.db.QueryRow(`
+		SELECT id, username, email, first_name, last_name, bio, avatar, role, created_at, updated_at
+		FROM users WHERE id = $1 AND role != 'deleted'
+	`, userID).Scan(
+		&user.ID, &user.Username, &user.Email, &user.FirstName, &user.LastName,
+		&user.Bio, &user.Avatar, &user.Role, &user.CreatedAt, &user.UpdatedAt,
+	)
+	
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+	
+	return &user, nil
+}
+
+// GetUserAvatar returns avatar URL for a user
+func (s *userService) GetUserAvatar(userID int) (*string, error) {
+	var avatar *string
+	err := s.db.QueryRow("SELECT avatar FROM users WHERE id = $1 AND role != 'deleted'", userID).Scan(&avatar)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	return avatar, nil
+}
+
+// UpdateUserAvatar updates user's avatar URL
+func (s *userService) UpdateUserAvatar(userID int, avatarURL string) error {
+	_, err := s.db.Exec("UPDATE users SET avatar = $1, updated_at = NOW() WHERE id = $2", avatarURL, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update avatar: %w", err)
+	}
+	return nil
+}
+
+// DeleteUserAvatar removes user's avatar
+func (s *userService) DeleteUserAvatar(userID int) error {
+	_, err := s.db.Exec("UPDATE users SET avatar = NULL, updated_at = NOW() WHERE id = $1", userID)
+	if err != nil {
+		return fmt.Errorf("failed to remove avatar: %w", err)
+	}
+	return nil
 }

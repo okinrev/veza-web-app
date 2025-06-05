@@ -1,344 +1,249 @@
-// internal/api/auth/service.go
-package auth
+// internal/services/auth_service.go
+package services
 
 import (
-	"database/sql"
 	"fmt"
-	"net/http"
+	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	
-	"veza-web-app/internal/api/user"
-	"veza-web-app/internal/utils/auth"
+	"veza-web-app/internal/database"
+	"veza-web-app/internal/models"
+	"veza-web-app/internal/utils"
 )
 
-// Service handles authentication business logic
-type Service struct {
-	db        *sql.DB
-	jwtSecret string
-	userService *user.Service
+type AuthService interface {
+	Register(req RegisterRequest) (*models.User, error)
+	Login(req LoginRequest) (*LoginResponse, error)
+	RefreshToken(refreshToken string) (*TokenResponse, error)
+	Logout(refreshToken string) error
+	VerifyToken(tokenString string) (*TokenClaims, error)
+	GenerateTokenPair(userID int, username, role string) (*TokenPair, error)
 }
 
-// NewService creates a new auth service
-func NewService(db *sql.DB, jwtSecret string) *Service {
-	return &Service{
+type authService struct {
+	db        *database.DB
+	jwtSecret string
+}
+
+func NewAuthService(db *database.DB, jwtSecret string) AuthService {
+	return &authService{
 		db:        db,
 		jwtSecret: jwtSecret,
-		userService: user.NewService(db),
 	}
 }
 
-// Login handles user login
-func (s *Service) Login(c *gin.Context) {
-	var req user.LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request data: " + err.Error(),
-			"success": false,
-		})
-		return
-	}
-
-	// Get user by email
-	userRecord, err := s.userService.GetUserByEmail(req.Email)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "Invalid email or password",
-			"success": false,
-		})
-		return
-	}
-
-	// Check if user is active
-	if !userRecord.IsActive {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "Account is deactivated",
-			"success": false,
-		})
-		return
-	}
-
-	// Verify password
-	if !auth.CheckPasswordHash(req.Password, userRecord.Password) {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "Invalid email or password",
-			"success": false,
-		})
-		return
-	}
-
-	// Generate tokens
-	accessToken, refreshToken, expiresIn, err := s.generateTokens(userRecord)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to generate tokens",
-			"success": false,
-		})
-		return
-	}
-
-	// Update last login
-	if err := s.userService.UpdateLastLogin(userRecord.ID); err != nil {
-		// Log error but don't fail the login
-		fmt.Printf("Failed to update last login for user %d: %v\n", userRecord.ID, err)
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Login successful",
-		"data": user.AuthResponse{
-			User:         userRecord.ToResponse(),
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
-			ExpiresIn:    expiresIn,
-		},
-	})
+// Request/Response types
+type RegisterRequest struct {
+	Username string `json:"username" validate:"required,min=3,max=50"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
 }
 
-// Register handles user registration
-func (s *Service) Register(c *gin.Context) {
-	var req user.RegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request data: " + err.Error(),
-			"success": false,
-		})
-		return
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
+type LoginResponse struct {
+	User         *models.User `json:"user"`
+	AccessToken  string       `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
+	ExpiresIn    int64        `json:"expires_in"`
+}
+
+type TokenResponse struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int64  `json:"expires_in"`
+}
+
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int64  `json:"expires_in"`
+}
+
+type TokenClaims struct {
+	UserID   int    `json:"user_id"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+}
+
+// Register creates a new user account
+func (s *authService) Register(req RegisterRequest) (*models.User, error) {
+	// Normalize input
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	req.Username = strings.TrimSpace(req.Username)
+
+	// Check if email already exists
+	var count int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE email = $1", req.Email).Scan(&count)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check email existence: %w", err)
+	}
+	if count > 0 {
+		return nil, fmt.Errorf("email already exists")
+	}
+
+	// Check if username already exists
+	err = s.db.QueryRow("SELECT COUNT(*) FROM users WHERE username = $1", req.Username).Scan(&count)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check username existence: %w", err)
+	}
+	if count > 0 {
+		return nil, fmt.Errorf("username already exists")
+	}
+
+	// Hash password
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	// Create user
-	createReq := user.CreateUserRequest{
-		Email:     req.Email,
-		Password:  req.Password,
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Username:  req.Username,
-		Role:      "user", // Default role
-	}
+	var user models.User
+	err = s.db.QueryRow(`
+		INSERT INTO users (username, email, password_hash, role, created_at, updated_at)
+		VALUES ($1, $2, $3, 'user', NOW(), NOW()) 
+		RETURNING id, username, email, role, created_at, updated_at
+	`, req.Username, req.Email, hashedPassword).Scan(
+		&user.ID, &user.Username, &user.Email, &user.Role, &user.CreatedAt, &user.UpdatedAt,
+	)
 
-	newUser, err := s.userService.CreateUser(createReq)
 	if err != nil {
-		if err.Error() == "email already exists" {
-			c.JSON(http.StatusConflict, gin.H{
-				"error":   "Email already exists",
-				"success": false,
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to create user: " + err.Error(),
-			"success": false,
-		})
-		return
+		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"message": "Registration successful",
-		"data":    newUser,
-	})
+	return &user, nil
 }
 
-// RefreshToken handles token refresh
-func (s *Service) RefreshToken(c *gin.Context) {
-	var req struct {
-		RefreshToken string `json:"refresh_token" binding:"required"`
-	}
+// Login authenticates a user and returns tokens
+func (s *authService) Login(req LoginRequest) (*LoginResponse, error) {
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request data: " + err.Error(),
-			"success": false,
-		})
-		return
-	}
+	// Get user from database
+	var user models.User
+	var passwordHash string
+	err := s.db.QueryRow(`
+		SELECT id, username, email, password_hash, role, created_at, updated_at 
+		FROM users WHERE email = $1 AND role != 'deleted'
+	`, req.Email).Scan(
+		&user.ID, &user.Username, &user.Email, &passwordHash, 
+		&user.Role, &user.CreatedAt, &user.UpdatedAt,
+	)
 
-	// Validate refresh token
-	userID, err := s.validateRefreshToken(req.RefreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "Invalid refresh token",
-			"success": false,
-		})
-		return
+		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	// Get user
-	userResponse, err := s.userService.GetUserByID(userID)
+	// Verify password
+	if err := utils.CheckPasswordHash(req.Password, passwordHash); err != nil {
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	// Generate tokens
+	tokenPair, err := s.GenerateTokenPair(user.ID, user.Username, user.Role)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "User not found",
-			"success": false,
-		})
-		return
+		return nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
-	// Convert UserResponse back to User for token generation
-	userRecord := &user.User{
-		ID:       userResponse.ID,
-		Email:    userResponse.Email,
-		Role:     userResponse.Role,
-		IsActive: userResponse.IsActive,
-	}
-
-	// Generate new tokens
-	accessToken, newRefreshToken, expiresIn, err := s.generateTokens(userRecord)
+	// Store refresh token
+	err = s.storeRefreshToken(user.ID, tokenPair.RefreshToken)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to generate tokens",
-			"success": false,
-		})
-		return
+		return nil, fmt.Errorf("failed to store refresh token: %w", err)
 	}
 
-	// Invalidate old refresh token
-	if err := s.invalidateRefreshToken(req.RefreshToken); err != nil {
-		// Log error but don't fail the request
-		fmt.Printf("Failed to invalidate old refresh token: %v\n", err)
+	// Update last login
+	_, err = s.db.Exec("UPDATE users SET updated_at = NOW() WHERE id = $1", user.ID)
+	if err != nil {
+		// Log error but don't fail login
+		fmt.Printf("Failed to update last login for user %d: %v\n", user.ID, err)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"access_token":  accessToken,
-			"refresh_token": newRefreshToken,
-			"expires_in":    expiresIn,
-		},
-	})
+	return &LoginResponse{
+		User:         &user,
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		ExpiresIn:    tokenPair.ExpiresIn,
+	}, nil
 }
 
-// generateTokens generates both access and refresh tokens
-func (s *Service) generateTokens(user *user.User) (string, string, int64, error) {
-	// Access token (expires in 1 hour)
-	accessTokenExpiry := time.Now().Add(time.Hour)
-	accessClaims := jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"role":    user.Role,
-		"exp":     accessTokenExpiry.Unix(),
-		"iat":     time.Now().Unix(),
-	}
+// RefreshToken generates a new access token from a refresh token
+func (s *authService) RefreshToken(refreshToken string) (*TokenResponse, error) {
+	// Verify refresh token and get user
+	var user models.User
+	err := s.db.QueryRow(`
+		SELECT u.id, u.username, u.email, u.role, u.created_at, u.updated_at
+		FROM refresh_tokens rt
+		JOIN users u ON u.id = rt.user_id
+		WHERE rt.token = $1 AND rt.expires_at > NOW() AND u.role != 'deleted'
+	`, refreshToken).Scan(
+		&user.ID, &user.Username, &user.Email, &user.Role, 
+		&user.CreatedAt, &user.UpdatedAt,
+	)
 
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessTokenString, err := accessToken.SignedString([]byte(s.jwtSecret))
 	if err != nil {
-		return "", "", 0, err
+		return nil, fmt.Errorf("invalid or expired refresh token")
 	}
 
-	// Refresh token (expires in 30 days)
-	refreshTokenExpiry := time.Now().Add(30 * 24 * time.Hour)
-	refreshClaims := jwt.MapClaims{
-		"user_id": user.ID,
-		"exp":     refreshTokenExpiry.Unix(),
-		"iat":     time.Now().Unix(),
-		"type":    "refresh",
-	}
-
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshTokenString, err := refreshToken.SignedString([]byte(s.jwtSecret))
+	// Generate new access token
+	accessToken, expiresIn, err := utils.GenerateAccessToken(user.ID, user.Username, user.Role, s.jwtSecret)
 	if err != nil {
-		return "", "", 0, err
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	// Store refresh token in database
-	if err := s.storeRefreshToken(user.ID, refreshTokenString, refreshTokenExpiry); err != nil {
-		return "", "", 0, err
-	}
-
-	return accessTokenString, refreshTokenString, accessTokenExpiry.Unix(), nil
+	return &TokenResponse{
+		AccessToken: accessToken,
+		ExpiresIn:   expiresIn,
+	}, nil
 }
 
-// storeRefreshToken stores a refresh token in the database
-func (s *Service) storeRefreshToken(userID int, token string, expiresAt time.Time) error {
-	query := `
-		INSERT INTO refresh_tokens (user_id, token, expires_at, created_at, updated_at)
-		VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`
-	
-	_, err := s.db.Exec(query, userID, token, expiresAt)
+// Logout invalidates the refresh token
+func (s *authService) Logout(refreshToken string) error {
+	_, err := s.db.Exec("DELETE FROM refresh_tokens WHERE token = $1", refreshToken)
 	if err != nil {
-		return fmt.Errorf("failed to store refresh token: %w", err)
+		return fmt.Errorf("failed to logout: %w", err)
 	}
-	
 	return nil
 }
 
-// validateRefreshToken validates a refresh token and returns the user ID
-func (s *Service) validateRefreshToken(tokenString string) (int, error) {
-	// Parse and validate JWT
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(s.jwtSecret), nil
-	})
-
+// VerifyToken validates and extracts claims from a JWT token
+func (s *authService) VerifyToken(tokenString string) (*TokenClaims, error) {
+	claims, err := utils.ValidateJWT(tokenString, s.jwtSecret)
 	if err != nil {
-		return 0, err
+		return nil, fmt.Errorf("invalid token: %w", err)
 	}
 
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
-		return 0, fmt.Errorf("invalid token")
-	}
-
-	// Check if it's a refresh token
-	tokenType, ok := claims["type"].(string)
-	if !ok || tokenType != "refresh" {
-		return 0, fmt.Errorf("not a refresh token")
-	}
-
-	userID, ok := claims["user_id"].(float64)
-	if !ok {
-		return 0, fmt.Errorf("invalid user ID in token")
-	}
-
-	// Check if token exists in database and is not expired
-	var exists bool
-	query := `
-		SELECT EXISTS(
-			SELECT 1 FROM refresh_tokens 
-			WHERE token = $1 AND user_id = $2 AND expires_at > CURRENT_TIMESTAMP
-		)
-	`
-	
-	err = s.db.QueryRow(query, tokenString, int(userID)).Scan(&exists)
-	if err != nil {
-		return 0, fmt.Errorf("failed to validate refresh token: %w", err)
-	}
-	
-	if !exists {
-		return 0, fmt.Errorf("refresh token not found or expired")
-	}
-
-	return int(userID), nil
+	return &TokenClaims{
+		UserID:   claims.UserID,
+		Username: claims.Username,
+		Role:     claims.Role,
+	}, nil
 }
 
-// invalidateRefreshToken removes a refresh token from the database
-func (s *Service) invalidateRefreshToken(token string) error {
-	query := "DELETE FROM refresh_tokens WHERE token = $1"
-	_, err := s.db.Exec(query, token)
+// GenerateTokenPair generates both access and refresh tokens
+func (s *authService) GenerateTokenPair(userID int, username, role string) (*TokenPair, error) {
+	accessToken, refreshToken, expiresIn, err := utils.GenerateTokenPair(userID, username, role, s.jwtSecret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token pair: %w", err)
+	}
+
+	return &TokenPair{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    expiresIn,
+	}, nil
+}
+
+// Helper methods
+func (s *authService) storeRefreshToken(userID int, token string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
+		VALUES ($1, $2, NOW() + INTERVAL '7 days', NOW())
+		ON CONFLICT (user_id) DO UPDATE SET 
+			token = EXCLUDED.token, 
+			expires_at = EXCLUDED.expires_at,
+			created_at = EXCLUDED.created_at
+	`, userID, token)
+
 	return err
-}
-
-// Logout handles user logout (invalidates refresh token)
-func (s *Service) Logout(c *gin.Context) {
-	var req struct {
-		RefreshToken string `json:"refresh_token"`
-	}
-
-	// This is optional - user can logout without providing refresh token
-	if err := c.ShouldBindJSON(&req); err == nil && req.RefreshToken != "" {
-		if err := s.invalidateRefreshToken(req.RefreshToken); err != nil {
-			// Log error but don't fail the logout
-			fmt.Printf("Failed to invalidate refresh token during logout: %v\n", err)
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Logout successful",
-	})
 }
