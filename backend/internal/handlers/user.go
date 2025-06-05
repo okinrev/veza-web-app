@@ -2,7 +2,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,12 +18,12 @@ type UserHandler struct {
 }
 
 type UpdateUserRequest struct {
-	Username    *string `json:"username,omitempty"`
-	Email       *string `json:"email,omitempty"`
-	FirstName   *string `json:"first_name,omitempty"`
-	LastName    *string `json:"last_name,omitempty"`
-	Bio         *string `json:"bio,omitempty"`
-	Avatar      *string `json:"avatar,omitempty"`
+	Username  *string `json:"username,omitempty"`
+	Email     *string `json:"email,omitempty"`
+	FirstName *string `json:"first_name,omitempty"`
+	LastName  *string `json:"last_name,omitempty"`
+	Bio       *string `json:"bio,omitempty"`
+	Avatar    *string `json:"avatar,omitempty"`
 }
 
 type ChangePasswordRequest struct {
@@ -49,32 +48,6 @@ func NewUserHandler(db *database.DB) *UserHandler {
 	return &UserHandler{db: db}
 }
 
-// GetMe returns the current user's profile
-func (h *UserHandler) GetMe(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"error":   "User not authenticated",
-		})
-		return
-	}
-
-	user, err := h.getUserByID(userID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "User not found",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    user,
-	})
-}
-
 // UpdateMe updates the current user's profile
 func (h *UserHandler) UpdateMe(c *gin.Context) {
 	userID, exists := middleware.GetUserIDFromContext(c)
@@ -96,7 +69,7 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 	}
 
 	// Build dynamic update query
-	setParts := []string{}
+	setParts := []string{"updated_at = NOW()"}
 	args := []interface{}{}
 	argCount := 1
 
@@ -131,7 +104,7 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 		argCount++
 	}
 
-	if len(setParts) == 0 {
+	if len(setParts) == 1 { // Only updated_at
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   "No fields to update",
@@ -139,8 +112,7 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 		return
 	}
 
-	// Add updated_at and user_id
-	setParts = append(setParts, "updated_at = NOW()")
+	// Add user ID as the last argument
 	args = append(args, userID)
 
 	query := "UPDATE users SET " + strings.Join(setParts, ", ") + " WHERE id = $" + strconv.Itoa(argCount)
@@ -200,7 +172,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 
 	// Get current password hash
 	var currentHash string
-	err := h.db.QueryRow("SELECT password_hash FROM users WHERE id = $1", userID).Scan(&currentHash)
+	err := h.db.QueryRow("SELECT password_hash FROM users WHERE id = $1 AND role != 'deleted'", userID).Scan(&currentHash)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -263,104 +235,20 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 	baseQuery := `
 		SELECT id, username, email, first_name, last_name, bio, avatar, role, created_at, updated_at
 		FROM users
+		WHERE role != 'deleted'
 	`
-	countQuery := "SELECT COUNT(*) FROM users"
+	countQuery := "SELECT COUNT(*) FROM users WHERE role != 'deleted'"
 	
-	whereClause := ""
 	args := []interface{}{}
+	argCount := 1
 	
 	if search != "" {
-		whereClause = " WHERE username ILIKE $1 OR email ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1"
+		searchClause := " AND (username ILIKE $" + strconv.Itoa(argCount) + " OR email ILIKE $" + strconv.Itoa(argCount) + 
+			" OR first_name ILIKE $" + strconv.Itoa(argCount) + " OR last_name ILIKE $" + strconv.Itoa(argCount) + ")"
+		baseQuery += searchClause
+		countQuery += searchClause
 		args = append(args, "%"+search+"%")
-	}
-
-	// Get total count
-	var total int
-	err := h.db.QueryRow(countQuery+whereClause, args...).Scan(&total)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to count users",
-		})
-		return
-	}
-
-	// Get users
-	orderClause := " ORDER BY created_at DESC LIMIT $" + strconv.Itoa(len(args)+1) + " OFFSET $" + strconv.Itoa(len(args)+2)
-	args = append(args, limit, offset)
-
-	rows, err := h.db.Query(baseQuery+whereClause+orderClause, args...)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to retrieve users",
-		})
-		return
-	}
-	defer rows.Close()
-
-	users := []UserResponse{}
-	for rows.Next() {
-		var user UserResponse
-		err := rows.Scan(
-			&user.ID, &user.Username, &user.Email, &user.FirstName, &user.LastName,
-			&user.Bio, &user.Avatar, &user.Role, &user.CreatedAt, &user.UpdatedAt,
-		)
-		if err != nil {
-			continue
-		}
-		users = append(users, user)
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    users,
-		"meta": gin.H{
-			"page":        page,
-			"per_page":    limit,
-			"total":       total,
-			"total_pages": (total + limit - 1) / limit,
-		},
-	})
-}
-
-// GetUsersExceptMe returns users excluding the current user
-func (h *UserHandler) GetUsersExceptMe(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"error":   "User not authenticated",
-		})
-		return
-	}
-
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	search := strings.TrimSpace(c.Query("search"))
-
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 100 {
-		limit = 20
-	}
-
-	offset := (page - 1) * limit
-
-	// Build query
-	baseQuery := `
-		SELECT id, username, email, first_name, last_name, bio, avatar, role, created_at, updated_at
-		FROM users WHERE id != $1
-	`
-	countQuery := "SELECT COUNT(*) FROM users WHERE id != $1"
-	
-	args := []interface{}{userID}
-	
-	if search != "" {
-		baseQuery += " AND (username ILIKE $2 OR email ILIKE $2 OR first_name ILIKE $2 OR last_name ILIKE $2)"
-		countQuery += " AND (username ILIKE $2 OR email ILIKE $2 OR first_name ILIKE $2 OR last_name ILIKE $2)"
-		args = append(args, "%"+search+"%")
+		argCount++
 	}
 
 	// Get total count
@@ -375,7 +263,7 @@ func (h *UserHandler) GetUsersExceptMe(c *gin.Context) {
 	}
 
 	// Get users
-	orderClause := " ORDER BY created_at DESC LIMIT $" + strconv.Itoa(len(args)+1) + " OFFSET $" + strconv.Itoa(len(args)+2)
+	orderClause := " ORDER BY created_at DESC LIMIT $" + strconv.Itoa(argCount) + " OFFSET $" + strconv.Itoa(argCount+1)
 	args = append(args, limit, offset)
 
 	rows, err := h.db.Query(baseQuery+orderClause, args...)
@@ -432,7 +320,8 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 	rows, err := h.db.Query(`
 		SELECT id, username, email, first_name, last_name, bio, avatar, role, created_at, updated_at
 		FROM users 
-		WHERE username ILIKE $1 OR email ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1
+		WHERE (username ILIKE $1 OR email ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1)
+		  AND role != 'deleted'
 		ORDER BY username ASC
 		LIMIT $2
 	`, "%"+query+"%", limit)
@@ -465,8 +354,8 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 	})
 }
 
-// GetUserAvatar serves a user's avatar
-func (h *UserHandler) GetUserAvatar(c *gin.Context) {
+// GetUserByID returns a specific user by ID
+func (h *UserHandler) GetUserByID(c *gin.Context) {
 	idStr := c.Param("id")
 	userID, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -477,8 +366,7 @@ func (h *UserHandler) GetUserAvatar(c *gin.Context) {
 		return
 	}
 
-	var avatar *string
-	err = h.db.QueryRow("SELECT avatar FROM users WHERE id = $1", userID).Scan(&avatar)
+	user, err := h.getUserByID(userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -487,14 +375,10 @@ func (h *UserHandler) GetUserAvatar(c *gin.Context) {
 		return
 	}
 
-	if avatar == nil || *avatar == "" {
-		// Redirect to default avatar
-		c.Redirect(http.StatusFound, "/static/default-avatar.png")
-		return
-	}
-
-	// Redirect to user's avatar
-	c.Redirect(http.StatusFound, *avatar)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    user,
+	})
 }
 
 // Helper function to get user by ID
@@ -502,7 +386,7 @@ func (h *UserHandler) getUserByID(userID int) (*UserResponse, error) {
 	var user UserResponse
 	err := h.db.QueryRow(`
 		SELECT id, username, email, first_name, last_name, bio, avatar, role, created_at, updated_at
-		FROM users WHERE id = $1
+		FROM users WHERE id = $1 AND role != 'deleted'
 	`, userID).Scan(
 		&user.ID, &user.Username, &user.Email, &user.FirstName, &user.LastName,
 		&user.Bio, &user.Avatar, &user.Role, &user.CreatedAt, &user.UpdatedAt,
