@@ -1,4 +1,4 @@
-<!-- file: frontend/users.html -->
+<!-- file: frontend/users -->
 
 <!DOCTYPE html>
 <html lang="fr">
@@ -17,7 +17,7 @@
     </template>
 
     <template x-for="user in users" :key="user.id">
-      <a :href="`/message.html?user_id=${user.id}`" class="block border-b py-2 hover:bg-gray-100">
+      <a :href="`/message?user_id=${user.id}`" class="block border-b py-2 hover:bg-gray-100">
         <div class="font-semibold" x-text="user.username"></div>
         <div class="text-sm text-gray-500" x-text="user.email"></div>
       </a>

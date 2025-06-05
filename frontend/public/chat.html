@@ -569,7 +569,7 @@
             async checkAuth() {
                 const token = localStorage.getItem('access_token');
                 if (!token) {
-                    window.location.href = '/login.html';
+                    window.location.href = '/login';
                     return false;
                 }
 
@@ -579,14 +579,14 @@
                     
                     if (payload.exp && payload.exp < Date.now() / 1000) {
                         localStorage.removeItem('access_token');
-                        window.location.href = '/login.html';
+                        window.location.href = '/login';
                         return false;
                     }
                     
                     return true;
                 } catch (e) {
                     this.showNotification('Erreur d\'authentification', 'error');
-                    window.location.href = '/login.html';
+                    window.location.href = '/login';
                     return false;
                 }
             },
@@ -600,7 +600,7 @@
                 }
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
-                window.location.href = '/login.html';
+                window.location.href = '/login';
             },
 
             goBack() {

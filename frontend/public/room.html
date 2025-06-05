@@ -300,7 +300,7 @@
             async checkAuth() {
                 const token = localStorage.getItem('access_token');
                 if (!token) {
-                    window.location.href = '/login.html';
+                    window.location.href = '/login';
                     return;
                 }
 
@@ -309,7 +309,7 @@
                     this.username = payload.username;
                 } catch (e) {
                     this.showNotification('Erreur d\'authentification', 'error');
-                    window.location.href = '/login.html';
+                    window.location.href = '/login';
                 }
             },
 
@@ -319,7 +319,7 @@
                 }
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
-                window.location.href = '/login.html';
+                window.location.href = '/login';
             },
 
             // Chargement des salons

@@ -2,15 +2,15 @@
 
 document.addEventListener('alpine:init', () => {
     const components = {
-      'dm-chat': '../dm.html',
-      'room-chat': '../room.html',
-      'track-manager': '../tracks.html',
-      'product-manager': '../products.html',
-      'product-docs': '../docs.html',
-      'shared-ressources': '../shared.html',
-      'tag-list': '../tags.html',
-      'suggestion-panel': '../suggestions.html',
-      'settings-panel': '../settings.html',
+      'dm-chat': '../dm',
+      'room-chat': '../room',
+      'track-manager': '../tracks',
+      'product-manager': '../products',
+      'product-docs': '../docs',
+      'shared-ressources': '../shared',
+      'tag-list': '../tags',
+      'suggestion-panel': '../suggestions',
+      'settings-panel': '../settings',
     };
   
     const loadComponent = async (id, url) => {

@@ -18,7 +18,7 @@
       <span class="text-xl font-bold">Veza</span>
     </div>
     <div>
-      <button @click="page = 'settings'; loadComponent('settings-panel', '/components/settings.html')" class="text-sm text-blue-600 hover:underline">Paramètres</button>
+      <button @click="page = 'settings'; loadComponent('settings-panel', '/components/settings')" class="text-sm text-blue-600 hover:underline">Paramètres</button>
       <button @click="logout()" class="ml-4 text-sm text-red-600 hover:underline">Déconnexion</button>
     </div>
   </header>
@@ -43,7 +43,7 @@
           <button
             :class="{ 'bg-blue-100 font-semibold': page === key }"
             class="p-2 rounded hover:bg-blue-50 text-left"
-            @click="page = key; loadComponent(`${key}-panel`, `/components/${key}.html`)"
+            @click="page = key; loadComponent(`${key}-panel`, `/components/${key}`)"
             x-text="label"
           ></button>
         </template>

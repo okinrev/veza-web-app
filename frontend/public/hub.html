@@ -510,7 +510,7 @@
         async init() {
           const token = localStorage.getItem('access_token');
           if (!token) {
-            window.location.href = '/login.html';
+            window.location.href = '/login';
             return;
           }
 
@@ -941,7 +941,7 @@
           if (this.socket) {
             this.socket.close();
           }
-          window.location.href = '/login.html';
+          window.location.href = '/login';
         },
 
         // Watchers

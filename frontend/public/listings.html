@@ -517,7 +517,7 @@
         if (window.history.length > 1) {
           window.history.back();
         } else {
-          window.location.href = '/dashboard.html';
+          window.location.href = '/dashboard';
         }
       },
 
@@ -792,7 +792,7 @@
       },
 
       shareListing(listing) {
-        const url = `${window.location.origin}/troc.html?listing=${listing.id}`;
+        const url = `${window.location.origin}/troc?listing=${listing.id}`;
         if (navigator.share) {
           navigator.share({
             title: `Annonce: ${this.getProductName(listing.product_id)}`,

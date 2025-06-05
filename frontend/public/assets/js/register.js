@@ -24,7 +24,7 @@ function registerForm() {
           localStorage.setItem('access_token', data.access_token);
           localStorage.setItem('refresh_token', data.refresh_token);
           this.message = '✅ Inscription réussie !';
-          window.location.href = '/dashboard.html';
+          window.location.href = '/dashboard';
         })
         .catch(() => this.message = '❌ Erreur lors de l\'inscription');
       }
