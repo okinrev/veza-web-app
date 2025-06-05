@@ -64,7 +64,7 @@ func NewTrackHandler(db *database.DB) *TrackHandler {
 
 // AddTrackWithUpload handles track upload with file
 func (h *TrackHandler) AddTrackWithUpload(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -219,7 +219,7 @@ func (h *TrackHandler) ListTracks(c *gin.Context) {
 	// Apply visibility filters
 	if showPrivate {
 		// Only show user's own tracks if requesting private
-		userID, exists := middleware.GetUserIDFromContext(c)
+		userID, exists := common.GetUserIDFromContext(c)
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,
@@ -300,7 +300,7 @@ func (h *TrackHandler) GetTrack(c *gin.Context) {
 		return
 	}
 
-	userID, _ := middleware.GetUserIDFromContext(c)
+	userID, _ := common.GetUserIDFromContext(c)
 	track, err := h.getTrackByID(trackID, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -318,7 +318,7 @@ func (h *TrackHandler) GetTrack(c *gin.Context) {
 
 // UpdateTrack updates a track's metadata
 func (h *TrackHandler) UpdateTrack(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -433,7 +433,7 @@ func (h *TrackHandler) UpdateTrack(c *gin.Context) {
 
 // DeleteTrack deletes a track and its file
 func (h *TrackHandler) DeleteTrack(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -519,7 +519,7 @@ func (h *TrackHandler) StreamAudio(c *gin.Context) {
 
 // GenerateStreamURL generates a signed URL for streaming
 func (h *TrackHandler) GenerateStreamURL(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -689,7 +689,7 @@ func (h *TrackHandler) validateSignature(filename string, userID int, expiration
 
 // AddTrackWithUpload - Version mise à jour avec validation audio
 func (h *TrackHandler) AddTrackWithUpload(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -952,7 +952,7 @@ func (h *TrackHandler) StreamAudioSigned(c *gin.Context) {
 
 // GenerateStreamURL generates a signed streaming URL
 func (h *TrackHandler) GenerateStreamURL(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,

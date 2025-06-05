@@ -1,0 +1,111 @@
+internal/
+├── admin
+│   ├── handlers
+│   │   ├── analytics.go
+│   │   ├── category.go
+│   │   ├── main_handler.go
+│   │   └── products.go
+│   ├── repository
+│   │   └── product_repository.go
+│   └── services
+│       └── product_service.go
+├── api
+│   └── middleware
+│       ├── auth.go
+│       ├── cors.go
+│       ├── jwt.go
+│       ├── logging.go
+│       ├── rate_limit.go
+│       ├── security.go
+│       └── validation.go
+├── config
+│   └── config.go
+├── constants
+│   ├── constants.go
+│   └── roles.go
+├── database
+│   ├── connection.go
+│   └── migrations
+│       ├── 001_users.sql.2
+│       ├── 002_users_trigger.sql.2
+│       ├── extend_products.sql.2
+│       ├── files.sql
+│       ├── internal_ressources.sql
+│       ├── listings.sql
+│       ├── messages.sql
+│       ├── offer.sql
+│       ├── products.sql
+│       ├── refresh_tokens.sql
+│       ├── rooms.sql
+│       ├── shared_ressources.sql
+│       ├── shared_ressources_tags.sql
+│       ├── tag.sql
+│       ├── track.sql
+│       └── users.sql
+├── handlers
+│   ├── admin.go
+│   ├── auth.go
+│   ├── chat.go
+│   ├── file.go
+│   ├── listing.go
+│   ├── offer.go
+│   ├── product.go
+│   ├── room.go
+│   ├── shared_resources.go
+│   ├── tags_search.go
+│   ├── track.go
+│   ├── user.go
+│   └── user_product.go
+├── models
+│   ├── admin.go
+│   ├── chat.go
+│   ├── file.go
+│   ├── listing.go
+│   ├── product.go
+│   ├── search.go
+│   ├── shared_resource.go
+│   ├── track.go
+│   └── user.go
+├── routes
+│   ├── admin.go
+│   ├── auth.go
+│   ├── chat.go
+│   ├── direct.go
+│   ├── listings.go
+│   ├── products.go
+│   ├── router.go
+│   ├── search.go
+│   ├── shared_resources.go
+│   ├── tracks.go
+│   └── user.go
+├── services
+│   ├── auth_service.go
+│   ├── chat_service.go
+│   ├── file_service.go
+│   ├── listing_service.go
+│   ├── offer_service.go
+│   ├── product_service.go
+│   ├── room_service.go
+│   ├── search_service.go
+│   ├── tag_service.go
+│   ├── track_service.go
+│   └── user_service.go
+└── utils
+    ├── auth
+    │   ├── hash.go
+    │   ├── jwt.go
+    │   └── permissions.go
+    ├── errors
+    │   └── handler.go
+    ├── files
+    │   └── signedurl.go
+    ├── hash
+    │   └── hash.go
+    ├── response
+    │   ├── json.go
+    │   └── response.go
+    └── validation
+        ├── hash.go
+        └── signedurl.go
+
+22 directories, 87 files

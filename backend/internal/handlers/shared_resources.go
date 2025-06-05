@@ -62,7 +62,7 @@ func NewSharedResourcesHandler(db *database.DB) *SharedResourcesHandler {
 
 // UploadSharedResource handles file upload and resource creation
 func (h *SharedResourcesHandler) UploadSharedResource(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -219,7 +219,7 @@ func (h *SharedResourcesHandler) ListSharedResources(c *gin.Context) {
 	// Apply visibility filters
 	if showPrivate {
 		// Only show user's own resources if requesting private
-		userID, exists := middleware.GetUserIDFromContext(c)
+		userID, exists := common.GetUserIDFromContext(c)
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,
@@ -381,7 +381,7 @@ func (h *SharedResourcesHandler) SearchSharedResources(c *gin.Context) {
 
 // UpdateSharedResource updates a resource's metadata
 func (h *SharedResourcesHandler) UpdateSharedResource(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -501,7 +501,7 @@ func (h *SharedResourcesHandler) UpdateSharedResource(c *gin.Context) {
 
 // DeleteSharedResource deletes a resource and its file
 func (h *SharedResourcesHandler) DeleteSharedResource(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -801,7 +801,7 @@ func (h *SharedResourcesHandler) validateResourceType(filename, resourceType str
 
 // UploadSharedResource - Version mise à jour avec validation
 func (h *SharedResourcesHandler) UploadSharedResource(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -941,7 +941,7 @@ func (h *SharedResourcesHandler) UploadSharedResource(c *gin.Context) {
 
 // GetDetailedStats returns comprehensive statistics about shared resources
 func (h *SharedResourcesHandler) GetDetailedStats(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	var stats DetailedResourceStats
 
 	// Get basic stats
@@ -1060,7 +1060,7 @@ func (h *SharedResourcesHandler) GetDetailedStats(c *gin.Context) {
 
 // GetDownloadStats returns download statistics for a specific resource
 func (h *SharedResourcesHandler) GetDownloadStats(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -1167,7 +1167,7 @@ func (h *SharedResourcesHandler) ServeSharedFile(c *gin.Context) {
 
 	// Check access permissions
 	if !isPublic {
-		userID, exists := middleware.GetUserIDFromContext(c)
+		userID, exists := common.GetUserIDFromContext(c)
 		if !exists || userID != uploaderID {
 			c.JSON(http.StatusForbidden, gin.H{
 				"success": false,
@@ -1203,7 +1203,7 @@ func (h *SharedResourcesHandler) ServeSharedFile(c *gin.Context) {
 		}
 
 		// Track the download
-		userID, _ := middleware.GetUserIDFromContext(c)
+		userID, _ := common.GetUserIDFromContext(c)
 		userAgent := c.GetHeader("User-Agent")
 		ipAddress := c.ClientIP()
 		

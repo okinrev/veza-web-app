@@ -50,7 +50,7 @@ func NewUserHandler(db *database.DB) *UserHandler {
 
 // UpdateMe updates the current user's profile
 func (h *UserHandler) UpdateMe(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -152,7 +152,7 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 
 // ChangePassword changes the user's password
 func (h *UserHandler) ChangePassword(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -407,7 +407,7 @@ const (
 
 // UploadAvatar uploads and processes user avatar
 func (h *UserHandler) UploadAvatar(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -516,7 +516,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 // DeleteAvatar removes user avatar
 func (h *UserHandler) DeleteAvatar(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -595,7 +595,7 @@ func (h *UserHandler) ServeAvatar(c *gin.Context) {
 
 // GetUsersExceptMe returns all users except current user (for chat)
 func (h *UserHandler) GetUsersExceptMe(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,

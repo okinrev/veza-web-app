@@ -52,7 +52,7 @@ func NewFileHandler(db *database.DB) *FileHandler {
 
 // UploadFile handles file upload for a user product
 func (h *FileHandler) UploadFile(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -191,7 +191,7 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 
 // ListProductFiles returns files for a product
 func (h *FileHandler) ListProductFiles(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -267,7 +267,7 @@ func (h *FileHandler) ListProductFiles(c *gin.Context) {
 
 // DownloadFile serves a file for download
 func (h *FileHandler) DownloadFile(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -343,7 +343,7 @@ func (h *FileHandler) DownloadFile(c *gin.Context) {
 
 // DeleteFile deletes a file
 func (h *FileHandler) DeleteFile(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -411,7 +411,7 @@ func (h *FileHandler) DeleteFile(c *gin.Context) {
 
 // UploadInternalDoc handles internal document upload
 func (h *FileHandler) UploadInternalDoc(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -559,7 +559,7 @@ func (h *FileHandler) UploadInternalDoc(c *gin.Context) {
 
 // ListInternalDocs returns internal documents for a product
 func (h *FileHandler) ListInternalDocs(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -635,7 +635,7 @@ func (h *FileHandler) ListInternalDocs(c *gin.Context) {
 
 // ServeInternalDoc serves an internal document for download
 func (h *FileHandler) ServeInternalDoc(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -799,7 +799,7 @@ func (h *FileHandler) validateFileType(filename, expectedType string) error {
 
 // UploadFile - Version mise à jour avec validation
 func (h *FileHandler) UploadFile(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -956,7 +956,7 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 
 // GetFileStats returns file statistics for admin
 func (h *FileHandler) GetFileStats(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,

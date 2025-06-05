@@ -114,17 +114,6 @@ func AdminMiddleware() gin.HandlerFunc {
 	}
 }
 
-// GetUserIDFromContext extracts user ID from the Gin context
-func GetUserIDFromContext(c *gin.Context) (int, bool) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		return 0, false
-	}
-
-	id, ok := userID.(int)
-	return id, ok
-}
-
 // GetUserEmailFromContext extracts user email from the Gin context
 func GetUserEmailFromContext(c *gin.Context) (string, bool) {
 	userEmail, exists := c.Get("user_email")

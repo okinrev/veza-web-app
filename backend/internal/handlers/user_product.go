@@ -67,7 +67,7 @@ func NewUserProductHandler(db *database.DB) *UserProductHandler {
 
 // ListUserProducts returns user's owned products
 func (h *UserProductHandler) ListUserProducts(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -154,7 +154,7 @@ func (h *UserProductHandler) ListUserProducts(c *gin.Context) {
 
 // UpdateUserProduct updates a user's product
 func (h *UserProductHandler) UpdateUserProduct(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -284,7 +284,7 @@ func (h *UserProductHandler) UpdateUserProduct(c *gin.Context) {
 
 // DeleteUserProduct removes a product from user's collection
 func (h *UserProductHandler) DeleteUserProduct(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -353,7 +353,7 @@ func (h *UserProductHandler) DeleteUserProduct(c *gin.Context) {
 
 // GetWarrantyStatus returns warranty status for user's products
 func (h *UserProductHandler) GetWarrantyStatus(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -434,7 +434,7 @@ func (h *UserProductHandler) GetWarrantyStatus(c *gin.Context) {
 
 // SearchUserProducts searches within user's products
 func (h *UserProductHandler) SearchUserProducts(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -624,7 +624,7 @@ func (h *UserProductHandler) getUserProductByID(userProductID, userID int) (*Use
 
 // GetUserProduct returns a specific user product
 func (h *UserProductHandler) GetUserProduct(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -660,7 +660,7 @@ func (h *UserProductHandler) GetUserProduct(c *gin.Context) {
 
 // CreateUserProduct adds a product to user's collection
 func (h *UserProductHandler) CreateUserProduct(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,

@@ -1,10 +1,10 @@
 // file: backend/routes/tag.go
 
-package routes
+package services
 
 import (
 	"github.com/gorilla/mux"
-	"veza-web-app/handlers"
+	"veza-web-app/internal/handlers"
 )
 
 func RegisterTagRoutes(r *mux.Router) {

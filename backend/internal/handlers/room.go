@@ -182,7 +182,7 @@ func (h *RoomHandler) GetPublicRooms(c *gin.Context) {
 
 // CreateRoom creates a new chat room
 func (h *RoomHandler) CreateRoom(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -272,7 +272,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 
 // GetRoom returns a specific room
 func (h *RoomHandler) GetRoom(c *gin.Context) {
-	userID, _ := middleware.GetUserIDFromContext(c)
+	userID, _ := common.GetUserIDFromContext(c)
 
 	roomIDStr := c.Param("id")
 	roomID, err := strconv.Atoi(roomIDStr)
@@ -301,7 +301,7 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 
 // JoinRoom allows user to join a room
 func (h *RoomHandler) JoinRoom(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -392,7 +392,7 @@ func (h *RoomHandler) JoinRoom(c *gin.Context) {
 
 // LeaveRoom allows user to leave a room
 func (h *RoomHandler) LeaveRoom(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -459,7 +459,7 @@ func (h *RoomHandler) LeaveRoom(c *gin.Context) {
 
 // GetRoomMembers returns members of a room
 func (h *RoomHandler) GetRoomMembers(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -533,7 +533,7 @@ func (h *RoomHandler) GetRoomMembers(c *gin.Context) {
 
 // GetRoomMessages returns messages from a room
 func (h *RoomHandler) GetRoomMessages(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -619,7 +619,7 @@ func (h *RoomHandler) GetRoomMessages(c *gin.Context) {
 
 // SendRoomMessage sends a message to a room
 func (h *RoomHandler) SendRoomMessage(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,

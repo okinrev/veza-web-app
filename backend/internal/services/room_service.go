@@ -1,12 +1,12 @@
 //file: backend/routes/room.go
 
-package routes
+package services
 
 import (
     "github.com/gorilla/mux"
-    "veza-web-app/handlers"
+    "veza-web-app/internal/handlers"
     "github.com/jmoiron/sqlx"
-    "veza-web-app/middleware"
+    "veza-web-app/internal/api/middleware"
 )
 
 func RegisterRoomRoutes(r *mux.Router, db *sqlx.DB) {

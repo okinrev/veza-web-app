@@ -1,11 +1,11 @@
-//file: backend/routes/file.go
+// internal/services/file_service.go
 
-package routes
+package services
 
 import (
 	"github.com/gorilla/mux"
-	"veza-web-app/handlers"
-	"veza-web-app/middleware"
+	"veza-web-app/internal/handlers"
+	"veza-web-app/internal/api/middleware"
 )
 
 func RegisterFileRoutes(r *mux.Router) {

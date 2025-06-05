@@ -63,7 +63,7 @@ func NewChatHandler(db *database.DB) *ChatHandler {
 
 // GetDirectMessages returns direct message history between two users
 func (h *ChatHandler) GetDirectMessages(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -160,7 +160,7 @@ func (h *ChatHandler) GetDirectMessages(c *gin.Context) {
 
 // SendDirectMessage sends a direct message to another user
 func (h *ChatHandler) SendDirectMessage(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -252,7 +252,7 @@ func (h *ChatHandler) SendDirectMessage(c *gin.Context) {
 
 // GetConversations returns a list of conversations for the current user
 func (h *ChatHandler) GetConversations(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -391,7 +391,7 @@ func (h *ChatHandler) GetPublicRooms(c *gin.Context) {
 
 // CreateRoom creates a new chat room
 func (h *ChatHandler) CreateRoom(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -486,7 +486,7 @@ func (h *ChatHandler) GetRoomMessages(c *gin.Context) {
 
 	// For private rooms, ensure user has access (this is a simplified check)
 	if isPrivate {
-		userID, exists := middleware.GetUserIDFromContext(c)
+		userID, exists := common.GetUserIDFromContext(c)
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,
@@ -557,7 +557,7 @@ func (h *ChatHandler) GetRoomMessages(c *gin.Context) {
 
 // SendRoomMessage sends a message to a room
 func (h *ChatHandler) SendRoomMessage(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -677,7 +677,7 @@ type MessageWithAvatar struct {
 
 // GetDirectMessages - Version améliorée avec avatars
 func (h *ChatHandler) GetDirectMessages(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -774,7 +774,7 @@ func (h *ChatHandler) GetDirectMessages(c *gin.Context) {
 
 // GetConversations - Version améliorée avec avatars et détails
 func (h *ChatHandler) GetConversations(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -871,7 +871,7 @@ func (h *ChatHandler) GetConversations(c *gin.Context) {
 
 // MarkAsRead marks messages as read
 func (h *ChatHandler) MarkAsRead(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -918,7 +918,7 @@ func (h *ChatHandler) MarkAsRead(c *gin.Context) {
 
 // EditMessage allows users to edit their own messages
 func (h *ChatHandler) EditMessage(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -992,7 +992,7 @@ func (h *ChatHandler) EditMessage(c *gin.Context) {
 
 // DeleteMessage allows users to delete their own messages
 func (h *ChatHandler) DeleteMessage(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -1053,7 +1053,7 @@ func (h *ChatHandler) DeleteMessage(c *gin.Context) {
 
 // GetUnreadCount returns total unread messages count for current user
 func (h *ChatHandler) GetUnreadCount(c *gin.Context) {
-	currentUserID, exists := middleware.GetUserIDFromContext(c)
+	currentUserID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,

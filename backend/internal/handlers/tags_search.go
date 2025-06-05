@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,10 +16,6 @@ import (
 	"veza-web-app/internal/middleware"
 	"veza-web-app/internal/models"
 )
-
-type TagsSearchHandler struct {
-	db *database.DB
-}
 
 type GlobalSearchResult struct {
 	Users          []UserSearchResult          `json:"users"`
@@ -188,7 +185,7 @@ func (h *TagsSearchHandler) GlobalSearch(c *gin.Context) {
 
 // AdvancedSearch performs filtered search within specific categories
 func (h *TagsSearchHandler) AdvancedSearch(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -780,7 +777,7 @@ type ContextualSuggestion struct {
 func (h *TagsSearchHandler) GetContextualSuggestions(c *gin.Context) {
 	query := strings.TrimSpace(c.Query("q"))
 	context := c.Query("context") // e.g., "track", "resource", "user"
-	userID, _ := middleware.GetUserIDFromContext(c)
+	userID, _ := common.GetUserIDFromContext(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
 	if limit < 1 || limit > 50 {
@@ -1158,7 +1155,7 @@ func (h *TagsSearchHandler) GetTrendingTags(c *gin.Context) {
 
 // ClearSuggestionCache clears the suggestion cache (admin only)
 func (h *TagsSearchHandler) ClearSuggestionCache(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,

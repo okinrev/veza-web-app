@@ -1,14 +1,10 @@
-//file: backend/routes/offer.go
+//file: backend/services/offer_service.go
 
-package routes
+package services
 
-import (
-    "github.com/gorilla/mux"
-    "veza-web-app/handlers"
-)
-
-func RegisterOfferRoutes(router *mux.Router) {
-    // Offers
-    router.HandleFunc("/listings/{id:[0-9]+}/offer", handlers.CreateOffer).Methods("POST")
-    router.HandleFunc("/offers/{id:[0-9]+}/accept", handlers.AcceptOffer).Methods("POST")
+type OfferService interface {
+    CreateOffer(listingID, fromUserID, proposedProductID int, message *string) (*models.Offer, error)
+    AcceptOffer(offerID, userID int) error
+    RejectOffer(offerID, userID int) error
+    GetUserOffers(userID int, offerType string, page, limit int) ([]models.Offer, int, error)
 }

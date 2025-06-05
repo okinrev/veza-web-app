@@ -6,11 +6,23 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"context"
 
 	"github.com/gin-gonic/gin"
 	"veza-web-app/internal/database"
-	"veza-web-app/internal/middleware"
+	"veza-web-app/internal/api/middleware"
 	"veza-web-app/internal/models"
+)
+
+// Constants for roles, statuses, and pagination
+const (
+	RoleAdmin         = "admin"
+	RoleSuperAdmin    = "super_admin"
+	ListingStatusOpen = "open"
+	OfferStatusPending  = "pending"
+	DefaultPage       = 1
+	DefaultLimit      = 20
+	MaxLimit          = 100
 )
 
 type AdminHandler struct {
@@ -100,7 +112,7 @@ func NewAdminHandler(db *database.DB) *AdminHandler {
 
 // Dashboard returns admin dashboard statistics
 func (h *AdminHandler) Dashboard(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -119,6 +131,11 @@ func (h *AdminHandler) Dashboard(c *gin.Context) {
 	}
 
 	stats := DashboardStats{}
+
+	// Get user statistics
+	h.db.QueryRowContext(c.Request.Context(), "SELECT COUNT(*) FROM users").Scan(&stats.TotalUsers)
+	h.db.QueryRowContext(c.Request.Context(), "SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '30 days'").Scan(&stats.ActiveUsers)
+	// ... apply to all other database calls
 
 	// Get user statistics
 	h.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&stats.TotalUsers)
@@ -145,7 +162,7 @@ func (h *AdminHandler) Dashboard(c *gin.Context) {
 	// Get room statistics
 	h.db.QueryRow("SELECT COUNT(*) FROM rooms").Scan(&stats.TotalRooms)
 
-	stats.LastUpdated = "NOW()"
+	stats.LastUpdated = time.Now().Format("2006-01-02 15:04:05") // Or time.RFC3339 for ISO 8601
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -155,7 +172,7 @@ func (h *AdminHandler) Dashboard(c *gin.Context) {
 
 // GetUsers returns paginated list of users for admin
 func (h *AdminHandler) GetUsers(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -172,16 +189,16 @@ func (h *AdminHandler) GetUsers(c *gin.Context) {
 		return
 	}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", strconv.Itoa(DefaultPage)))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", strconv.Itoa(DefaultLimit)))
 	search := strings.TrimSpace(c.Query("search"))
 	role := c.Query("role")
 
-	if page < 1 {
-		page = 1
+	if page < DefaultPage {
+		page = DefaultPage
 	}
-	if limit < 1 || limit > 100 {
-		limit = 20
+	if limit < DefaultLimit || limit > MaxLimit { // Use MaxLimit constant
+		limit = DefaultLimit
 	}
 
 	offset := (page - 1) * limit
@@ -251,6 +268,7 @@ func (h *AdminHandler) GetUsers(c *gin.Context) {
 			&user.ResourcesCount, &user.ListingsCount, &user.MessagesCount,
 		)
 		if err != nil {
+			log.Printf("Error scanning user row: %v", err)
 			continue
 		}
 		user.IsActive = user.TracksCount > 0 || user.ResourcesCount > 0 || user.MessagesCount > 0
@@ -271,7 +289,7 @@ func (h *AdminHandler) GetUsers(c *gin.Context) {
 
 // GetAnalytics returns content analytics
 func (h *AdminHandler) GetAnalytics(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -296,7 +314,7 @@ func (h *AdminHandler) GetAnalytics(c *gin.Context) {
 		FROM tracks 
 		WHERE created_at >= NOW() - INTERVAL '12 months'
 		GROUP BY TO_CHAR(created_at, 'YYYY-MM')
-		ORDER BY month DESC
+		ORDER BY month ASC
 	`)
 	if err == nil {
 		defer trackRows.Close()
@@ -313,7 +331,7 @@ func (h *AdminHandler) GetAnalytics(c *gin.Context) {
 		FROM shared_resources 
 		WHERE uploaded_at >= NOW() - INTERVAL '12 months'
 		GROUP BY TO_CHAR(uploaded_at, 'YYYY-MM')
-		ORDER BY month DESC
+		ORDER BY month ASC
 	`)
 	if err == nil {
 		defer resourceRows.Close()
@@ -330,7 +348,7 @@ func (h *AdminHandler) GetAnalytics(c *gin.Context) {
 		FROM users 
 		WHERE created_at >= NOW() - INTERVAL '12 months'
 		GROUP BY TO_CHAR(created_at, 'YYYY-MM')
-		ORDER BY month DESC
+		ORDER BY month ASC
 	`)
 	if err == nil {
 		defer userRows.Close()
@@ -392,7 +410,7 @@ func (h *AdminHandler) GetAnalytics(c *gin.Context) {
 
 // GetCategories returns all categories
 func (h *AdminHandler) GetCategories(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -440,6 +458,7 @@ func (h *AdminHandler) GetCategories(c *gin.Context) {
 			&category.UpdatedAt, &category.ProductCount,
 		)
 		if err != nil {
+			log.Printf("Error scanning categories row: %v", err)
 			continue
 		}
 		categories = append(categories, category)
@@ -453,7 +472,7 @@ func (h *AdminHandler) GetCategories(c *gin.Context) {
 
 // CreateCategory creates a new category
 func (h *AdminHandler) CreateCategory(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -533,7 +552,7 @@ func (h *AdminHandler) CreateCategory(c *gin.Context) {
 
 // UpdateCategory updates a category
 func (h *AdminHandler) UpdateCategory(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -592,7 +611,7 @@ func (h *AdminHandler) UpdateCategory(c *gin.Context) {
 
 // DeleteCategory deletes a category
 func (h *AdminHandler) DeleteCategory(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -653,5 +672,5 @@ func (h *AdminHandler) isAdmin(userID int) bool {
 	if err != nil {
 		return false
 	}
-	return role == "admin" || role == "super_admin"
+	return role == RoleAdmin || role == RoleSuperAdmin
 }

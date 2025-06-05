@@ -1,16 +1,10 @@
-//file: backend/routes/listing.go
+//file: backend/services/listing_service.go
 
-package routes
+package services
 
-import (
-    "github.com/gorilla/mux"
-    "veza-web-app/handlers"
-)
-
-func RegisterListingRoutes(router *mux.Router) {
-    // CRUD Listings
-    router.HandleFunc("/listings", handlers.CreateListing).Methods("POST")
-    router.HandleFunc("/listings", handlers.GetAllListings).Methods("GET")
-    router.HandleFunc("/listings/{id:[0-9]+}", handlers.GetListingByID).Methods("GET")
-    router.HandleFunc("/listings/{id:[0-9]+}", handlers.DeleteListing).Methods("DELETE")
+type ListingService interface {
+    CreateListing(userID int, req CreateListingRequest) (*models.Listing, error)
+    GetListings(page, limit int, status string) ([]models.Listing, int, error)
+    UpdateListing(listingID, userID int, req UpdateListingRequest) (*models.Listing, error)
+    DeleteListing(listingID, userID int) error
 }

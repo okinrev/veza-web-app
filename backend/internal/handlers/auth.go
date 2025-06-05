@@ -273,7 +273,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 // GetMe returns current user profile
 func (h *AuthHandler) GetMe(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,

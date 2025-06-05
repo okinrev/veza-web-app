@@ -1,5 +1,5 @@
 // cmd/server/main.go
-package main
+package routes
 
 import (
 	"log"

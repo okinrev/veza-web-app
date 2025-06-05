@@ -71,7 +71,7 @@ func NewProductHandler(db *database.DB) *ProductHandler {
 
 // GetProducts returns paginated list of products (admin only)
 func (h *ProductHandler) GetProducts(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -213,7 +213,7 @@ func (h *ProductHandler) GetProducts(c *gin.Context) {
 
 // GetProduct returns a specific product by ID
 func (h *ProductHandler) GetProduct(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -257,7 +257,7 @@ func (h *ProductHandler) GetProduct(c *gin.Context) {
 
 // CreateProduct creates a new product (admin only)
 func (h *ProductHandler) CreateProduct(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -328,7 +328,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 
 // UpdateProduct updates a product (admin only)
 func (h *ProductHandler) UpdateProduct(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -467,7 +467,7 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 
 // DeleteProduct deletes a product (admin only)
 func (h *ProductHandler) DeleteProduct(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
+	userID, exists := common.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
