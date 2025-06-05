@@ -25,10 +25,6 @@ go.work.sum
 .env
 target/
 *.zip
-<<<<<<< HEAD
 tree.txt
-=======
 
-/bin/
-/backend
->>>>>>> 7257eb8bd6045d74ddcd39e0c0c82e05316b4ce3
+bin/
