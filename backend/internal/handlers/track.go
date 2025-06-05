@@ -10,6 +10,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"os/exec"
+	"regexp"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
@@ -573,4 +579,480 @@ func (h *TrackHandler) getTrackByID(trackID, userID int) (*TrackResponse, error)
 	track.Tags = []string(tags)
 	track.StreamURL = fmt.Sprintf("/stream/%s", track.Filename)
 	return &track, nil
+}
+
+// Ajouts pour URLs signées et validation audio
+
+const (
+	MaxAudioSize = 100 << 20 // 100MB
+	MaxAudioDuration = 600 // 10 minutes in seconds
+)
+
+// AudioMetadata represents audio file metadata
+type AudioMetadata struct {
+	Duration    int    `json:"duration_seconds"`
+	Bitrate     int    `json:"bitrate"`
+	SampleRate  int    `json:"sample_rate"`
+	Format      string `json:"format"`
+	Size        int64  `json:"size"`
+}
+
+// ValidateAudioFile validates audio file format and metadata
+func (h *TrackHandler) validateAudioFile(filePath string) (*AudioMetadata, error) {
+	// Use ffprobe to get audio metadata
+	cmd := exec.Command("ffprobe", 
+		"-v", "quiet",
+		"-print_format", "json",
+		"-show_format",
+		"-show_streams",
+		filePath)
+	
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("invalid audio file or ffprobe not available")
+	}
+
+	// Parse ffprobe output (simplified - you might want to use a JSON parser)
+	metadata := &AudioMetadata{}
+	
+	// Extract duration using regex (basic implementation)
+	durationRegex := regexp.MustCompile(`"duration":"([0-9.]+)"`)
+	if matches := durationRegex.FindStringSubmatch(string(output)); len(matches) > 1 {
+		if duration, err := strconv.ParseFloat(matches[1], 64); err == nil {
+			metadata.Duration = int(duration)
+		}
+	}
+
+	// Validate duration
+	if metadata.Duration > MaxAudioDuration {
+		return nil, fmt.Errorf("audio duration exceeds maximum allowed duration of %d seconds", MaxAudioDuration)
+	}
+
+	// Extract format
+	formatRegex := regexp.MustCompile(`"format_name":"([^"]+)"`)
+	if matches := formatRegex.FindStringSubmatch(string(output)); len(matches) > 1 {
+		metadata.Format = matches[1]
+	}
+
+	// Validate format
+	allowedFormats := []string{"mp3", "wav", "flac", "ogg", "m4a", "aac"}
+	validFormat := false
+	for _, format := range allowedFormats {
+		if strings.Contains(metadata.Format, format) {
+			validFormat = true
+			break
+		}
+	}
+	
+	if !validFormat {
+		return nil, fmt.Errorf("unsupported audio format: %s", metadata.Format)
+	}
+
+	return metadata, nil
+}
+
+// GenerateSignedURL creates a signed URL for audio streaming
+func (h *TrackHandler) generateSignedURL(filename string, userID int, secretKey string) (string, error) {
+	// Set expiration time (1 hour from now)
+	expiration := time.Now().Add(time.Hour).Unix()
+	
+	// Create signature data
+	data := fmt.Sprintf("%s:%d:%d", filename, userID, expiration)
+	
+	// Generate HMAC signature
+	mac := hmac.New(sha256.New, []byte(secretKey))
+	mac.Write([]byte(data))
+	signature := hex.EncodeToString(mac.Sum(nil))
+	
+	// Create signed URL
+	signedURL := fmt.Sprintf("/stream/signed/%s?expires=%d&sig=%s&uid=%d", 
+		filename, expiration, signature, userID)
+	
+	return signedURL, nil
+}
+
+// ValidateSignature validates a signed URL signature
+func (h *TrackHandler) validateSignature(filename string, userID int, expiration int64, signature, secretKey string) bool {
+	// Check if expired
+	if time.Now().Unix() > expiration {
+		return false
+	}
+	
+	// Recreate signature
+	data := fmt.Sprintf("%s:%d:%d", filename, userID, expiration)
+	mac := hmac.New(sha256.New, []byte(secretKey))
+	mac.Write([]byte(data))
+	expectedSignature := hex.EncodeToString(mac.Sum(nil))
+	
+	return hmac.Equal([]byte(signature), []byte(expectedSignature))
+}
+
+// AddTrackWithUpload - Version mise à jour avec validation audio
+func (h *TrackHandler) AddTrackWithUpload(c *gin.Context) {
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "User not authenticated",
+		})
+		return
+	}
+
+	// Parse multipart form with size limit
+	if err := c.Request.ParseMultipartForm(MaxAudioSize); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Audio file too large or invalid form",
+		})
+		return
+	}
+
+	// Get form values
+	title := strings.TrimSpace(c.PostForm("title"))
+	artist := strings.TrimSpace(c.PostForm("artist"))
+	tagsStr := strings.TrimSpace(c.PostForm("tags"))
+	isPublicStr := c.PostForm("is_public")
+
+	if title == "" || artist == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Title and artist are required",
+		})
+		return
+	}
+
+	// Parse tags
+	var tags []string
+	if tagsStr != "" {
+		tags = strings.Split(tagsStr, ",")
+		for i := range tags {
+			tags[i] = strings.TrimSpace(tags[i])
+		}
+	}
+
+	// Parse is_public
+	isPublic := true
+	if isPublicStr == "false" {
+		isPublic = false
+	}
+
+	// Get audio file
+	file, fileHeader, err := c.Request.FormFile("audio")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Audio file is required",
+		})
+		return
+	}
+	defer file.Close()
+
+	// Validate file size
+	if fileHeader.Size > MaxAudioSize {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Audio file too large (max %dMB)", MaxAudioSize/(1<<20)),
+		})
+		return
+	}
+
+	// Validate file extension
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	allowedExts := []string{".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
+	validExt := false
+	for _, allowedExt := range allowedExts {
+		if ext == allowedExt {
+			validExt = true
+			break
+		}
+	}
+	
+	if !validExt {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Unsupported audio format",
+		})
+		return
+	}
+
+	// Create audio directory
+	audioDir := "audio"
+	if err := os.MkdirAll(audioDir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to create audio directory",
+		})
+		return
+	}
+
+	// Generate unique filename
+	filename := fmt.Sprintf("%d_%d_%s", userID, time.Now().Unix(), 
+		strings.ReplaceAll(filepath.Base(fileHeader.Filename), " ", "_"))
+	savePath := filepath.Join(audioDir, filename)
+
+	// Save file
+	out, err := os.Create(savePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to save audio file",
+		})
+		return
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, file); err != nil {
+		os.Remove(savePath)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to write audio file",
+		})
+		return
+	}
+
+	// Validate and extract audio metadata
+	metadata, err := h.validateAudioFile(savePath)
+	if err != nil {
+		os.Remove(savePath)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Insert track into database with metadata
+	var trackID int
+	err = h.db.QueryRow(`
+		INSERT INTO tracks (title, artist, filename, duration_seconds, tags, is_public, uploader_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+		RETURNING id
+	`, title, artist, filename, metadata.Duration, pq.Array(tags), isPublic, userID).Scan(&trackID)
+
+	if err != nil {
+		os.Remove(savePath)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to save track to database",
+		})
+		return
+	}
+
+	// Return track data
+	track, err := h.getTrackByID(trackID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Track uploaded but failed to retrieve data",
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Track uploaded successfully",
+		"data":    track,
+		"metadata": metadata,
+	})
+}
+
+// StreamAudioSigned serves audio with signed URL validation
+func (h *TrackHandler) StreamAudioSigned(c *gin.Context) {
+	filename := c.Param("filename")
+	if filename == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Filename is required",
+		})
+		return
+	}
+
+	// Get signature parameters
+	expiresStr := c.Query("expires")
+	signature := c.Query("sig")
+	userIDStr := c.Query("uid")
+
+	if expiresStr == "" || signature == "" || userIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid signed URL parameters",
+		})
+		return
+	}
+
+	// Parse parameters
+	expiration, err := strconv.ParseInt(expiresStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid expiration time",
+		})
+		return
+	}
+
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid user ID",
+		})
+		return
+	}
+
+	// Validate signature (you should get secret key from config)
+	secretKey := "your-secret-key" // This should come from environment/config
+	if !h.validateSignature(filename, userID, expiration, signature, secretKey) {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "Invalid or expired signed URL",
+		})
+		return
+	}
+
+	// Verify track exists and user has access
+	var trackExists, isPublic bool
+	var uploaderID int
+	err = h.db.QueryRow(`
+		SELECT EXISTS(SELECT 1 FROM tracks WHERE filename = $1), is_public, uploader_id
+		FROM tracks WHERE filename = $1
+	`, filename).Scan(&trackExists, &isPublic, &uploaderID)
+
+	if !trackExists {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Track not found",
+		})
+		return
+	}
+
+	// Check access permissions
+	if !isPublic && uploaderID != userID {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "Access denied to private track",
+		})
+		return
+	}
+
+	// Serve the audio file
+	safePath := filepath.Join("audio", filepath.Base(filename))
+	if _, err := os.Stat(safePath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Audio file not found",
+		})
+		return
+	}
+
+	// Set appropriate headers for audio streaming
+	c.Header("Accept-Ranges", "bytes")
+	c.Header("Content-Type", "audio/mpeg") // Adjust based on file type
+	c.File(safePath)
+}
+
+// GenerateStreamURL generates a signed streaming URL
+func (h *TrackHandler) GenerateStreamURL(c *gin.Context) {
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "User not authenticated",
+		})
+		return
+	}
+
+	filename := c.Query("filename")
+	if filename == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Filename is required",
+		})
+		return
+	}
+
+	// Verify track exists and user has access
+	var trackExists, isPublic bool
+	var uploaderID int
+	err := h.db.QueryRow(`
+		SELECT EXISTS(SELECT 1 FROM tracks WHERE filename = $1), is_public, uploader_id
+		FROM tracks WHERE filename = $1
+	`, filename).Scan(&trackExists, &isPublic, &uploaderID)
+
+	if !trackExists {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Track not found",
+		})
+		return
+	}
+
+	// Check access permissions
+	if !isPublic && uploaderID != userID {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "Access denied to private track",
+		})
+		return
+	}
+
+	// Generate signed URL
+	secretKey := "your-secret-key" // This should come from environment/config
+	signedURL, err := h.generateSignedURL(filename, userID, secretKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to generate signed URL",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"signed_url": signedURL,
+			"expires_in": 3600, // 1 hour
+		},
+	})
+}
+
+// GetTrackStats returns statistics for a track
+func (h *TrackHandler) GetTrackStats(c *gin.Context) {
+	idStr := c.Param("id")
+	trackID, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid track ID",
+		})
+		return
+	}
+
+	// Get track statistics (you might want to implement a plays tracking system)
+	var stats struct {
+		TrackID     int    `json:"track_id"`
+		Title       string `json:"title"`
+		Artist      string `json:"artist"`
+		Duration    int    `json:"duration_seconds"`
+		FileSize    int64  `json:"file_size"`
+		Format      string `json:"format"`
+		CreatedAt   string `json:"created_at"`
+	}
+
+	err = h.db.QueryRow(`
+		SELECT id, title, artist, COALESCE(duration_seconds, 0), created_at
+		FROM tracks WHERE id = $1 AND is_public = true
+	`, trackID).Scan(&stats.TrackID, &stats.Title, &stats.Artist, &stats.Duration, &stats.CreatedAt)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Track not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    stats,
+	})
 }

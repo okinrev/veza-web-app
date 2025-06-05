@@ -747,3 +747,270 @@ func (h *FileHandler) getInternalDocByID(docID, userID int) (*InternalDocRespons
 	}
 	return &doc, nil
 }
+
+// Ajouts pour validation taille
+
+const (
+	MaxFileSize = 10 << 20 // 10MB
+	MaxInternalDocSize = 50 << 20 // 50MB
+)
+
+// ValidateFileSize validates file size based on type
+func (h *FileHandler) validateFileSize(size int64, fileType string) error {
+	var maxSize int64
+	
+	switch fileType {
+	case "manual", "warranty", "invoice":
+		maxSize = MaxInternalDocSize
+	default:
+		maxSize = MaxFileSize
+	}
+	
+	if size > maxSize {
+		return fmt.Errorf("file size exceeds maximum allowed size of %d bytes", maxSize)
+	}
+	
+	return nil
+}
+
+// ValidateFileType validates file type based on extension
+func (h *FileHandler) validateFileType(filename, expectedType string) error {
+	ext := strings.ToLower(filepath.Ext(filename))
+	
+	allowedExtensions := map[string][]string{
+		"manual":   {".pdf", ".doc", ".docx", ".txt"},
+		"warranty": {".pdf", ".jpg", ".jpeg", ".png"},
+		"invoice":  {".pdf", ".jpg", ".jpeg", ".png"},
+		"image":    {".jpg", ".jpeg", ".png", ".gif", ".webp"},
+		"document": {".pdf", ".doc", ".docx", ".txt", ".rtf"},
+	}
+	
+	if allowed, exists := allowedExtensions[expectedType]; exists {
+		for _, allowedExt := range allowed {
+			if ext == allowedExt {
+				return nil
+			}
+		}
+		return fmt.Errorf("file type %s not allowed for %s", ext, expectedType)
+	}
+	
+	return nil
+}
+
+// UploadFile - Version mise à jour avec validation
+func (h *FileHandler) UploadFile(c *gin.Context) {
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "User not authenticated",
+		})
+		return
+	}
+
+	productIDStr := c.Param("id")
+	productID, err := strconv.Atoi(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid product ID",
+		})
+		return
+	}
+
+	// Verify user owns the product
+	var ownerID int
+	err = h.db.QueryRow("SELECT user_id FROM user_products WHERE id = $1", productID).Scan(&ownerID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Product not found",
+		})
+		return
+	}
+
+	if ownerID != userID {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "Not authorized to upload files for this product",
+		})
+		return
+	}
+
+	// Parse multipart form with size limit
+	if err := c.Request.ParseMultipartForm(MaxInternalDocSize); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "File too large or invalid multipart form",
+		})
+		return
+	}
+
+	// Get file type from form
+	fileType := c.PostForm("type")
+	if fileType == "" {
+		fileType = "manual"
+	}
+
+	// Get file
+	file, fileHeader, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "File is required",
+		})
+		return
+	}
+	defer file.Close()
+
+	// Validate file size
+	if err := h.validateFileSize(fileHeader.Size, fileType); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Validate file type
+	if err := h.validateFileType(fileHeader.Filename, fileType); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Create uploads directory if it doesn't exist
+	uploadsDir := "uploads"
+	if err := os.MkdirAll(uploadsDir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to create uploads directory",
+		})
+		return
+	}
+
+	// Generate safe filename with timestamp
+	safeName := fmt.Sprintf("%d_%d_%s", productID, time.Now().Unix(), 
+		strings.ReplaceAll(filepath.Base(fileHeader.Filename), " ", "_"))
+	savePath := filepath.Join(uploadsDir, safeName)
+
+	// Save file
+	out, err := os.Create(savePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to save file",
+		})
+		return
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, file); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to write file",
+		})
+		return
+	}
+
+	// Get file info
+	fileInfo, _ := out.Stat()
+	fileSize := fileInfo.Size()
+
+	// Insert file record into database
+	var fileID int
+	err = h.db.QueryRow(`
+		INSERT INTO files (product_id, filename, url, type, size, mime_type, uploaded_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		RETURNING id
+	`, productID, fileHeader.Filename, "/files/"+safeName, fileType, fileSize, fileHeader.Header.Get("Content-Type")).Scan(&fileID)
+
+	if err != nil {
+		// Clean up file on database error
+		os.Remove(savePath)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to save file record to database",
+		})
+		return
+	}
+
+	// Return file data
+	fileResp, err := h.getFileByID(fileID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "File uploaded but failed to retrieve data",
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "File uploaded successfully",
+		"data":    fileResp,
+	})
+}
+
+// GetFileStats returns file statistics for admin
+func (h *FileHandler) GetFileStats(c *gin.Context) {
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "User not authenticated",
+		})
+		return
+	}
+
+	var stats struct {
+		TotalFiles     int    `json:"total_files"`
+		TotalSize      int64  `json:"total_size"`
+		FilesByType    map[string]int `json:"files_by_type"`
+		AverageSize    int64  `json:"average_size"`
+		LargestFile    int64  `json:"largest_file"`
+	}
+
+	// Get total files and size for user
+	err := h.db.QueryRow(`
+		SELECT COUNT(*), COALESCE(SUM(size), 0), COALESCE(AVG(size), 0), COALESCE(MAX(size), 0)
+		FROM files f
+		JOIN user_products up ON f.product_id = up.id
+		WHERE up.user_id = $1
+	`, userID).Scan(&stats.TotalFiles, &stats.TotalSize, &stats.AverageSize, &stats.LargestFile)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to get file statistics",
+		})
+		return
+	}
+
+	// Get files by type
+	rows, err := h.db.Query(`
+		SELECT f.type, COUNT(*)
+		FROM files f
+		JOIN user_products up ON f.product_id = up.id
+		WHERE up.user_id = $1
+		GROUP BY f.type
+	`, userID)
+
+	if err == nil {
+		defer rows.Close()
+		stats.FilesByType = make(map[string]int)
+		for rows.Next() {
+			var fileType string
+			var count int
+			rows.Scan(&fileType, &count)
+			stats.FilesByType[fileType] = count
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    stats,
+	})
+}

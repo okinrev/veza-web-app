@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
@@ -681,4 +683,508 @@ func (h *TagsSearchHandler) searchUsers(result *GlobalSearchResult, query string
 			result.Users = append(result.Users, user)
 		}
 	}
+}
+
+// Ajouts pour cache et suggestions avancées
+
+// CacheEntry represents a cached suggestion entry
+type CacheEntry struct {
+	Data      interface{} `json:"data"`
+	ExpiresAt time.Time   `json:"expires_at"`
+}
+
+// SuggestionCache handles caching of popular suggestions
+type SuggestionCache struct {
+	mu    sync.RWMutex
+	cache map[string]CacheEntry
+}
+
+// NewSuggestionCache creates a new suggestion cache
+func NewSuggestionCache() *SuggestionCache {
+	cache := &SuggestionCache{
+		cache: make(map[string]CacheEntry),
+	}
+	
+	// Start cleanup goroutine
+	go cache.cleanup()
+	
+	return cache
+}
+
+// Get retrieves a cached entry
+func (sc *SuggestionCache) Get(key string) (interface{}, bool) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+	
+	entry, exists := sc.cache[key]
+	if !exists || time.Now().After(entry.ExpiresAt) {
+		return nil, false
+	}
+	
+	return entry.Data, true
+}
+
+// Set stores a cache entry with expiration
+func (sc *SuggestionCache) Set(key string, data interface{}, duration time.Duration) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	
+	sc.cache[key] = CacheEntry{
+		Data:      data,
+		ExpiresAt: time.Now().Add(duration),
+	}
+}
+
+// cleanup removes expired entries
+func (sc *SuggestionCache) cleanup() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	
+	for range ticker.C {
+		sc.mu.Lock()
+		now := time.Now()
+		for key, entry := range sc.cache {
+			if now.After(entry.ExpiresAt) {
+				delete(sc.cache, key)
+			}
+		}
+		sc.mu.Unlock()
+	}
+}
+
+// Add cache to TagsSearchHandler
+type TagsSearchHandler struct {
+	db    *database.DB
+	cache *SuggestionCache
+}
+
+func NewTagsSearchHandler(db *database.DB) *TagsSearchHandler {
+	return &TagsSearchHandler{
+		db:    db,
+		cache: NewSuggestionCache(),
+	}
+}
+
+// ContextualSuggestion represents context-aware suggestions
+type ContextualSuggestion struct {
+	Value       string            `json:"value"`
+	Type        string            `json:"type"`
+	Score       float64           `json:"score"`
+	Context     map[string]string `json:"context,omitempty"`
+	Usage       int               `json:"usage,omitempty"`
+	Trending    bool              `json:"trending,omitempty"`
+	Related     []string          `json:"related,omitempty"`
+}
+
+// GetContextualSuggestions provides advanced context-aware suggestions
+func (h *TagsSearchHandler) GetContextualSuggestions(c *gin.Context) {
+	query := strings.TrimSpace(c.Query("q"))
+	context := c.Query("context") // e.g., "track", "resource", "user"
+	userID, _ := middleware.GetUserIDFromContext(c)
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if limit < 1 || limit > 50 {
+		limit = 10
+	}
+
+	// Create cache key
+	cacheKey := fmt.Sprintf("contextual_%s_%s_%d_%d", query, context, userID, limit)
+	
+	// Check cache first
+	if cached, found := h.cache.Get(cacheKey); found {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    cached,
+			"cached":  true,
+		})
+		return
+	}
+
+	suggestions := []ContextualSuggestion{}
+
+	switch context {
+	case "track":
+		suggestions = h.getTrackContextSuggestions(query, userID, limit)
+	case "resource":
+		suggestions = h.getResourceContextSuggestions(query, userID, limit)
+	case "user":
+		suggestions = h.getUserContextSuggestions(query, userID, limit)
+	default:
+		suggestions = h.getGlobalContextSuggestions(query, userID, limit)
+	}
+
+	// Cache results for 5 minutes
+	h.cache.Set(cacheKey, suggestions, 5*time.Minute)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    suggestions,
+		"cached":  false,
+	})
+}
+
+// getTrackContextSuggestions returns suggestions specific to track context
+func (h *TagsSearchHandler) getTrackContextSuggestions(query string, userID, limit int) []ContextualSuggestion {
+	suggestions := []ContextualSuggestion{}
+	pattern := strings.ToLower(query) + "%"
+
+	// Get popular track tags with usage stats
+	rows, err := h.db.Query(`
+		SELECT tag, COUNT(*) as usage, 
+		       CASE WHEN COUNT(*) > (SELECT AVG(cnt) FROM (
+		           SELECT COUNT(*) as cnt FROM (
+		               SELECT unnest(tags) as tag FROM tracks WHERE is_public = true
+		           ) t GROUP BY tag
+		       ) avg_table) THEN true ELSE false END as trending
+		FROM (
+			SELECT unnest(tags) as tag FROM tracks WHERE is_public = true
+		) track_tags
+		WHERE LOWER(tag) LIKE $1
+		GROUP BY tag
+		ORDER BY usage DESC, tag ASC
+		LIMIT $2
+	`, pattern, limit)
+
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var suggestion ContextualSuggestion
+			var trending bool
+			rows.Scan(&suggestion.Value, &suggestion.Usage, &trending)
+			suggestion.Type = "track_tag"
+			suggestion.Score = float64(suggestion.Usage) / 100.0 // Normalize score
+			suggestion.Trending = trending
+			suggestion.Context = map[string]string{"source": "tracks"}
+			
+			// Get related tags
+			suggestion.Related = h.getRelatedTags(suggestion.Value, "tracks", 3)
+			
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+
+	// Add artist suggestions
+	artistRows, err := h.db.Query(`
+		SELECT artist, COUNT(*) as usage
+		FROM tracks 
+		WHERE is_public = true AND LOWER(artist) LIKE $1
+		GROUP BY artist
+		ORDER BY usage DESC, artist ASC
+		LIMIT $2
+	`, pattern, limit/2)
+
+	if err == nil {
+		defer artistRows.Close()
+		for artistRows.Next() {
+			var suggestion ContextualSuggestion
+			artistRows.Scan(&suggestion.Value, &suggestion.Usage)
+			suggestion.Type = "artist"
+			suggestion.Score = float64(suggestion.Usage) / 50.0
+			suggestion.Context = map[string]string{"source": "tracks"}
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+
+	return suggestions
+}
+
+// getResourceContextSuggestions returns suggestions specific to shared resources
+func (h *TagsSearchHandler) getResourceContextSuggestions(query string, userID, limit int) []ContextualSuggestion {
+	suggestions := []ContextualSuggestion{}
+	pattern := strings.ToLower(query) + "%"
+
+	// Get resource tags with download stats
+	rows, err := h.db.Query(`
+		SELECT tag, COUNT(*) as usage, AVG(sr.download_count) as avg_downloads
+		FROM (
+			SELECT unnest(tags) as tag, id FROM shared_resources WHERE is_public = true
+		) resource_tags
+		JOIN shared_resources sr ON sr.id = resource_tags.id
+		WHERE LOWER(tag) LIKE $1
+		GROUP BY tag
+		ORDER BY avg_downloads DESC, usage DESC, tag ASC
+		LIMIT $2
+	`, pattern, limit)
+
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var suggestion ContextualSuggestion
+			var avgDownloads float64
+			rows.Scan(&suggestion.Value, &suggestion.Usage, &avgDownloads)
+			suggestion.Type = "resource_tag"
+			suggestion.Score = avgDownloads / 10.0 // Score based on download popularity
+			suggestion.Context = map[string]string{
+				"source":        "shared_resources",
+				"avg_downloads": fmt.Sprintf("%.1f", avgDownloads),
+			}
+			suggestion.Related = h.getRelatedTags(suggestion.Value, "shared_resources", 3)
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+
+	// Add resource type suggestions
+	typeRows, err := h.db.Query(`
+		SELECT type, COUNT(*) as usage, AVG(download_count) as avg_downloads
+		FROM shared_resources 
+		WHERE is_public = true AND LOWER(type) LIKE $1
+		GROUP BY type
+		ORDER BY avg_downloads DESC, usage DESC
+		LIMIT $2
+	`, pattern, limit/2)
+
+	if err == nil {
+		defer typeRows.Close()
+		for typeRows.Next() {
+			var suggestion ContextualSuggestion
+			var avgDownloads float64
+			typeRows.Scan(&suggestion.Value, &suggestion.Usage, &avgDownloads)
+			suggestion.Type = "resource_type"
+			suggestion.Score = avgDownloads / 5.0
+			suggestion.Context = map[string]string{
+				"source":        "shared_resources",
+				"avg_downloads": fmt.Sprintf("%.1f", avgDownloads),
+			}
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+
+	return suggestions
+}
+
+// getUserContextSuggestions returns user-specific suggestions
+func (h *TagsSearchHandler) getUserContextSuggestions(query string, userID, limit int) []ContextualSuggestion {
+	suggestions := []ContextualSuggestion{}
+	pattern := strings.ToLower(query) + "%"
+
+	// Get user suggestions with activity scores
+	rows, err := h.db.Query(`
+		SELECT u.username, u.id,
+		       COALESCE(track_count, 0) as tracks,
+		       COALESCE(resource_count, 0) as resources,
+		       COALESCE(total_downloads, 0) as downloads
+		FROM users u
+		LEFT JOIN (
+			SELECT uploader_id, COUNT(*) as track_count
+			FROM tracks WHERE is_public = true
+			GROUP BY uploader_id
+		) t ON u.id = t.uploader_id
+		LEFT JOIN (
+			SELECT uploader_id, COUNT(*) as resource_count, SUM(download_count) as total_downloads
+			FROM shared_resources WHERE is_public = true
+			GROUP BY uploader_id
+		) r ON u.id = r.uploader_id
+		WHERE u.role != 'deleted' AND u.id != $1 AND LOWER(u.username) LIKE $2
+		ORDER BY (COALESCE(track_count, 0) + COALESCE(resource_count, 0)) DESC, total_downloads DESC
+		LIMIT $3
+	`, userID, pattern, limit)
+
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var suggestion ContextualSuggestion
+			var userIDInt, tracks, resources, downloads int
+			rows.Scan(&suggestion.Value, &userIDInt, &tracks, &resources, &downloads)
+			suggestion.Type = "user"
+			suggestion.Score = float64(tracks+resources) + float64(downloads)/100.0
+			suggestion.Context = map[string]string{
+				"tracks":    fmt.Sprintf("%d", tracks),
+				"resources": fmt.Sprintf("%d", resources),
+				"downloads": fmt.Sprintf("%d", downloads),
+			}
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+
+	return suggestions
+}
+
+// getGlobalContextSuggestions returns general suggestions across all contexts
+func (h *TagsSearchHandler) getGlobalContextSuggestions(query string, userID, limit int) []ContextualSuggestion {
+	suggestions := []ContextualSuggestion{}
+	
+	// Combine suggestions from different contexts
+	trackSuggestions := h.getTrackContextSuggestions(query, userID, limit/3)
+	resourceSuggestions := h.getResourceContextSuggestions(query, userID, limit/3)
+	userSuggestions := h.getUserContextSuggestions(query, userID, limit/3)
+	
+	// Merge and sort by score
+	allSuggestions := append(append(trackSuggestions, resourceSuggestions...), userSuggestions...)
+	
+	// Sort by score descending
+	for i := 0; i < len(allSuggestions)-1; i++ {
+		for j := i + 1; j < len(allSuggestions); j++ {
+			if allSuggestions[i].Score < allSuggestions[j].Score {
+				allSuggestions[i], allSuggestions[j] = allSuggestions[j], allSuggestions[i]
+			}
+		}
+	}
+	
+	// Return top results
+	if len(allSuggestions) > limit {
+		suggestions = allSuggestions[:limit]
+	} else {
+		suggestions = allSuggestions
+	}
+	
+	return suggestions
+}
+
+// getRelatedTags finds tags that are commonly used together
+func (h *TagsSearchHandler) getRelatedTags(tag, source string, limit int) []string {
+	related := []string{}
+	
+	var query string
+	switch source {
+	case "tracks":
+		query = `
+			SELECT unnest(tags) as related_tag, COUNT(*) as co_occurrence
+			FROM tracks 
+			WHERE is_public = true AND $1 = ANY(tags) AND unnest(tags) != $1
+			GROUP BY related_tag
+			ORDER BY co_occurrence DESC
+			LIMIT $2
+		`
+	case "shared_resources":
+		query = `
+			SELECT unnest(tags) as related_tag, COUNT(*) as co_occurrence
+			FROM shared_resources 
+			WHERE is_public = true AND $1 = ANY(tags) AND unnest(tags) != $1
+			GROUP BY related_tag
+			ORDER BY co_occurrence DESC
+			LIMIT $2
+		`
+	default:
+		return related
+	}
+	
+	rows, err := h.db.Query(query, tag, limit)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var relatedTag string
+			var count int
+			rows.Scan(&relatedTag, &count)
+			related = append(related, relatedTag)
+		}
+	}
+	
+	return related
+}
+
+// GetTrendingTags returns currently trending tags
+func (h *TagsSearchHandler) GetTrendingTags(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	timeframe := c.DefaultQuery("timeframe", "7d") // 7d, 30d, 90d
+	
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	
+	// Create cache key
+	cacheKey := fmt.Sprintf("trending_%s_%d", timeframe, limit)
+	
+	// Check cache
+	if cached, found := h.cache.Get(cacheKey); found {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    cached,
+			"cached":  true,
+		})
+		return
+	}
+	
+	var interval string
+	switch timeframe {
+	case "30d":
+		interval = "30 days"
+	case "90d":
+		interval = "90 days"
+	default:
+		interval = "7 days"
+	}
+	
+	// Get trending tags from recent uploads
+	rows, err := h.db.Query(`
+		SELECT tag, COUNT(*) as recent_usage,
+		       ROUND((COUNT(*) * 100.0 / NULLIF((
+		           SELECT COUNT(*) FROM (
+		               SELECT unnest(tags) FROM tracks WHERE created_at > NOW() - INTERVAL '%s'
+		               UNION ALL
+		               SELECT unnest(tags) FROM shared_resources WHERE uploaded_at > NOW() - INTERVAL '%s'
+		           ) all_recent
+		       ), 0)), 2) as trend_score
+		FROM (
+			SELECT unnest(tags) as tag FROM tracks 
+			WHERE is_public = true AND created_at > NOW() - INTERVAL '%s'
+			UNION ALL
+			SELECT unnest(tags) as tag FROM shared_resources 
+			WHERE is_public = true AND uploaded_at > NOW() - INTERVAL '%s'
+		) recent_tags
+		GROUP BY tag
+		HAVING COUNT(*) > 1
+		ORDER BY trend_score DESC, recent_usage DESC
+		LIMIT $1
+	`, interval, interval, interval, interval, limit)
+	
+	trending := []map[string]interface{}{}
+	
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var tag string
+			var usage int
+			var score float64
+			rows.Scan(&tag, &usage, &score)
+			
+			trending = append(trending, map[string]interface{}{
+				"tag":         tag,
+				"usage":       usage,
+				"trend_score": score,
+				"timeframe":   timeframe,
+			})
+		}
+	}
+	
+	// Cache for 30 minutes
+	h.cache.Set(cacheKey, trending, 30*time.Minute)
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    trending,
+		"cached":  false,
+	})
+}
+
+// ClearSuggestionCache clears the suggestion cache (admin only)
+func (h *TagsSearchHandler) ClearSuggestionCache(c *gin.Context) {
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "User not authenticated",
+		})
+		return
+	}
+	
+	// Check if user is admin
+	var role string
+	err := h.db.QueryRow("SELECT role FROM users WHERE id = $1", userID).Scan(&role)
+	if err != nil || (role != "admin" && role != "super_admin") {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "Admin access required",
+		})
+		return
+	}
+	
+	// Clear cache
+	h.cache.mu.Lock()
+	h.cache.cache = make(map[string]CacheEntry)
+	h.cache.mu.Unlock()
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Suggestion cache cleared successfully",
+	})
 }
