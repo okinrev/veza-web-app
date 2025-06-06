@@ -1,3 +1,4 @@
+// backend/internal/database/db.go
 package database
 
 import (
@@ -12,8 +13,13 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// DB wraps sql.DB to provide additional methods
+type DB struct {
+	*sql.DB
+}
+
 // NewConnection creates a new database connection
-func NewConnection(databaseURL string) (*sql.DB, error) {
+func NewConnection(databaseURL string) (*DB, error) {
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -29,11 +35,26 @@ func NewConnection(databaseURL string) (*sql.DB, error) {
 	db.SetMaxIdleConns(25)
 
 	log.Println("✅ Database connection established")
-	return db, nil
+	return &DB{DB: db}, nil
+}
+
+// Query wraps sql.DB.Query to use our DB type
+func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	return db.DB.Query(query, args...)
+}
+
+// QueryRow wraps sql.DB.QueryRow to use our DB type
+func (db *DB) QueryRow(query string, args ...interface{}) *sql.Row {
+	return db.DB.QueryRow(query, args...)
+}
+
+// Exec wraps sql.DB.Exec to use our DB type
+func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
+	return db.DB.Exec(query, args...)
 }
 
 // RunMigrations runs all SQL migration files in the migrations directory
-func RunMigrations(db *sql.DB) error {
+func RunMigrations(db *DB) error {
 	// Create migrations table if it doesn't exist
 	if err := createMigrationsTable(db); err != nil {
 		return fmt.Errorf("failed to create migrations table: %w", err)
@@ -73,7 +94,7 @@ func RunMigrations(db *sql.DB) error {
 }
 
 // createMigrationsTable creates the migrations tracking table
-func createMigrationsTable(db *sql.DB) error {
+func createMigrationsTable(db *DB) error {
 	query := `
 		CREATE TABLE IF NOT EXISTS migrations (
 			id SERIAL PRIMARY KEY,
@@ -95,7 +116,12 @@ func getMigrationFiles(dir string) ([]string, error) {
 	var migrationFiles []string
 	for _, file := range files {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".sql") {
-			migrationFiles = append(migrationFiles, file.Name())
+			// Remove .2 suffix if present (from your files)
+			name := file.Name()
+			if strings.HasSuffix(name, ".sql.2") {
+				name = strings.TrimSuffix(name, ".2")
+			}
+			migrationFiles = append(migrationFiles, name)
 		}
 	}
 
@@ -105,7 +131,7 @@ func getMigrationFiles(dir string) ([]string, error) {
 }
 
 // getAppliedMigrations returns a map of applied migration filenames
-func getAppliedMigrations(db *sql.DB) (map[string]bool, error) {
+func getAppliedMigrations(db *DB) (map[string]bool, error) {
 	rows, err := db.Query("SELECT filename FROM migrations")
 	if err != nil {
 		return nil, err
@@ -125,7 +151,7 @@ func getAppliedMigrations(db *sql.DB) (map[string]bool, error) {
 }
 
 // runMigrationFile executes a single migration file
-func runMigrationFile(db *sql.DB, filePath string) error {
+func runMigrationFile(db *DB, filePath string) error {
 	content, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return err
@@ -148,7 +174,7 @@ func runMigrationFile(db *sql.DB, filePath string) error {
 }
 
 // recordMigration records that a migration has been applied
-func recordMigration(db *sql.DB, filename string) error {
+func recordMigration(db *DB, filename string) error {
 	_, err := db.Exec("INSERT INTO migrations (filename) VALUES ($1)", filename)
 	return err
 }

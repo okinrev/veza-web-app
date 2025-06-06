@@ -1,0 +1,221 @@
+backend
+├── api_doc.md
+├── bin
+│   └── veza-api
+├── cmd
+│   ├── api
+│   └── server
+│       └── main.go
+├── docs
+│   ├── admin
+│   ├── api
+│   ├── doc_admin_handler.md
+│   ├── doc_auth_handler.md
+│   ├── doc_chat_handler.md
+│   ├── doc_file_handler.md
+│   ├── doc_listing_handler.md
+│   ├── doc_offer_handler.md
+│   ├── doc_product_handler.md
+│   ├── doc_room_handler.md
+│   ├── doc_shared_resources_handler.md
+│   ├── doc_tags_search_handler.md
+│   ├── doc_track_handler.md
+│   ├── doc_user_handler.md
+│   ├── doc_user_product_handler.md
+│   └── MIGRATION.md
+├── go.mod
+├── go.sum
+├── internal
+│   ├── admin
+│   │   ├── handlers
+│   │   │   ├── analytics.go
+│   │   │   ├── category.go
+│   │   │   ├── main_handler.go
+│   │   │   └── products.go
+│   │   ├── repository
+│   │   │   └── product_repository.go
+│   │   └── services
+│   │       └── product_service.go
+│   ├── api
+│   │   ├── listing
+│   │   │   └── handler.go
+│   │   ├── message
+│   │   │   └── handler.go
+│   │   ├── middleware
+│   │   │   ├── auth.go
+│   │   │   ├── cors.go
+│   │   │   ├── jwt.go
+│   │   │   ├── logging.go
+│   │   │   ├── rate_limit.go
+│   │   │   ├── security.go
+│   │   │   └── validation.go
+│   │   ├── offer
+│   │   │   └── handler.go
+│   │   ├── room
+│   │   │   └── handler.go
+│   │   ├── search
+│   │   │   └── handler.go
+│   │   ├── shared_ressources
+│   │   │   └── handler.go
+│   │   ├── suggestions
+│   │   │   └── handler.go
+│   │   ├── tag
+│   │   │   └── handler.go
+│   │   ├── track
+│   │   │   └── handler.go
+│   │   └── user
+│   │       ├── handler.go
+│   │       ├── routes.go
+│   │       └── service.go
+│   ├── common
+│   │   └── context.go
+│   ├── config
+│   │   └── config.go
+│   ├── constants
+│   │   ├── constants.go
+│   │   └── roles.go
+│   ├── database
+│   │   ├── connection.go
+│   │   └── migrations
+│   │       ├── 001_users.sql.2
+│   │       ├── 002_users_trigger.sql.2
+│   │       ├── extend_products.sql.2
+│   │       ├── files.sql
+│   │       ├── internal_ressources.sql
+│   │       ├── listings.sql
+│   │       ├── messages.sql
+│   │       ├── offer.sql
+│   │       ├── products.sql
+│   │       ├── refresh_tokens.sql
+│   │       ├── rooms.sql
+│   │       ├── shared_ressources.sql
+│   │       ├── shared_ressources_tags.sql
+│   │       ├── tag.sql
+│   │       ├── track.sql
+│   │       └── users.sql
+│   ├── handlers
+│   │   ├── admin.go
+│   │   ├── auth.go
+│   │   ├── chat.go
+│   │   ├── file.go
+│   │   ├── listing.go
+│   │   ├── offer.go
+│   │   ├── product.go
+│   │   ├── room.go
+│   │   ├── shared_resources.go
+│   │   ├── tags_search.go
+│   │   ├── track.go
+│   │   ├── user.go
+│   │   └── user_product.go
+│   ├── models
+│   │   ├── admin.go
+│   │   ├── chat.go
+│   │   ├── file.go
+│   │   ├── listing.go
+│   │   ├── product.go
+│   │   ├── search.go
+│   │   ├── shared_resource.go
+│   │   ├── track.go
+│   │   └── user.go
+│   ├── routes
+│   │   ├── admin.go
+│   │   ├── auth.go
+│   │   ├── chat.go
+│   │   ├── direct.go
+│   │   ├── listings.go
+│   │   ├── products.go
+│   │   ├── router.go
+│   │   ├── search.go
+│   │   ├── shared_resources.go
+│   │   ├── tracks.go
+│   │   └── user.go
+│   ├── services
+│   │   ├── auth_service.go
+│   │   ├── chat_service.go
+│   │   ├── file_service.go
+│   │   ├── listing_service.go
+│   │   ├── offer_service.go
+│   │   ├── product_service.go
+│   │   ├── room_service.go
+│   │   ├── search_service.go
+│   │   ├── tag_service.go
+│   │   ├── track_service.go
+│   │   └── user_service.go
+│   └── utils
+│       ├── auth
+│       │   ├── hash.go
+│       │   ├── jwt.go
+│       │   └── permissions.go
+│       ├── errors
+│       │   └── handler.go
+│       ├── files
+│       │   └── signedurl.go
+│       ├── hash
+│       │   └── hash.go
+│       ├── response
+│       │   ├── json.go
+│       │   └── response.go
+│       └── validation
+│           ├── hash.go
+│           └── signedurl.go
+├── Makefile
+├── modules
+│   ├── chat_server
+│   │   ├── Cargo.lock
+│   │   ├── Cargo.toml
+│   │   ├── output_cargo_build
+│   │   └── src
+│   │       ├── auth.rs
+│   │       ├── client.rs
+│   │       ├── hub
+│   │       │   ├── common.rs
+│   │       │   ├── dm.rs
+│   │       │   ├── mod.rs
+│   │       │   └── room.rs
+│   │       ├── hub.rs
+│   │       ├── main.rs
+│   │       └── messages.rs
+│   ├── doc_chat_server.md
+│   ├── doc_stream_server.md
+│   └── stream_server
+│       ├── audio
+│       │   └── plouf.mp3
+│       ├── Cargo.lock
+│       ├── Cargo.toml
+│       └── src
+│           ├── main.rs
+│           ├── routes.rs
+│           └── utils.rs
+├── pkg
+│   ├── cache
+│   ├── logger
+│   │   └── logger.go
+│   └── validator
+│       └── validator.go
+├── pre_reorganisation_main.go
+├── run.sh
+├── scripts
+│   └── test-migration.sh
+└── static
+    ├── audio
+    │   ├── plouf.mp3
+    │   ├── sample(1).mp3
+    │   ├── sample2.mp3
+    │   └── sample.mp3
+    ├── default-avatar.png
+    ├── favicon.ico
+    ├── internal_ressources
+    ├── shared
+    │   ├── 2A361-68306A00-C67-4D36D880
+    │   └── secu_indus.pdf
+    ├── shared_ressources
+    │   ├── ciso_diff.png
+    │   ├── Logic_exercise.pdf
+    │   ├── login.png
+    │   ├── plouf.mp3
+    │   ├── sample(1).mp3
+    │   └── sample.mp3
+    └── uploads
+        └── 1_1747129598_test_upload.txt
+
+59 directories, 160 files
