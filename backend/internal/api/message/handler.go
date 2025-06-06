@@ -10,10 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Handler struct{}
+type Handler struct {
+	service *Service
+}
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(service *Service) *Handler {
+	return &Handler{service: service}
 }
 
 // GetDmHandler récupère les messages directs avec un utilisateur

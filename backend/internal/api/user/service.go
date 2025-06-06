@@ -7,15 +7,16 @@ import (
 	"strings"
 
 	"github.com/okinrev/veza-web-app/internal/utils"
+	"github.com/okinrev/veza-web-app/internal/database"
 )
 
 // Service handles user business logic
 type Service struct {
-	db *sql.DB
+	db *database.DB
 }
 
 // NewService creates a new user service
-func NewService(db *sql.DB) *Service {
+func NewService(db *database.DB) *Service {
 	return &Service{
 		db: db,
 	}

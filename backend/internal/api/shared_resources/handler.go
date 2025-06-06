@@ -9,6 +9,7 @@ import (
 	"github.com/okinrev/veza-web-app/internal/utils/response"
 )
 
+// Dans search/handler.go, tag/handler.go
 type Handler struct {
 	service *Service
 }

@@ -11,10 +11,13 @@ import (
 	"github.com/okinrev/veza-web-app/internal/common"
 )
 
-type Handler struct{}
+// Dans search/handler.go, tag/handler.go
+type Handler struct {
+	service *Service
+}
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(service *Service) *Handler {
+	return &Handler{service: service}
 }
 
 // GetSuggestions récupère des suggestions

@@ -11,11 +11,11 @@ import (
 )
 
 type Handler struct {
-	// Le service sera créé quand vous aurez défini la structure
+	service *Service
 }
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(service *Service) *Handler {
+	return &Handler{service: service}
 }
 
 // AddTrackWithUpload upload une nouvelle piste
