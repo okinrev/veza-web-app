@@ -318,7 +318,7 @@ func (s *Service) ChangePassword(userID int, currentPassword, newPassword string
 	}
 	
 	// Verify current password
-	if !utils.CheckPasswordHash(currentPassword, currentHash) {
+	if err := utils.CheckPasswordHash(currentPassword, currentHash); err != nil {
 		return fmt.Errorf("current password is incorrect")
 	}
 	

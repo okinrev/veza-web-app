@@ -4,7 +4,6 @@ package user
 import (
 	"net/http"
 	"strconv"
-	"github.com/okinrev/veza-web-app/internal/middleware"
 	"github.com/okinrev/veza-web-app/internal/utils/response"  // ADD THIS
     "github.com/okinrev/veza-web-app/internal/common"
 
@@ -172,7 +171,6 @@ func (h *Handler) SearchUsers(c *gin.Context) {
 	response.PaginatedJSON(c.Writer, users, meta, "Search results")
 }
 
-// GetUserAvatar récupère l'avatar d'un utilisateur
 func (h *Handler) GetUserAvatar(c *gin.Context) {
 	idStr := c.Param("id")
 	userID, err := strconv.Atoi(idStr)
@@ -187,11 +185,12 @@ func (h *Handler) GetUserAvatar(c *gin.Context) {
 		return
 	}
 
-	if user.Avatar == nil || *user.Avatar == "" {
+	// ✅ Correct way to handle sql.NullString
+	if !user.Avatar.Valid || user.Avatar.String == "" {
 		response.ErrorJSON(c.Writer, "No avatar found", http.StatusNotFound)
 		return
 	}
 
 	// Rediriger vers l'URL de l'avatar ou servir le fichier
-	c.Redirect(http.StatusFound, *user.Avatar)
+	c.Redirect(http.StatusFound, user.Avatar.String)
 }
