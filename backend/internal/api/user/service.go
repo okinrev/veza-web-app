@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/okinrev/veza-web-app/internal/utils/auth"
+	"github.com/okinrev/veza-web-app/internal/utils"
 )
 
 // Service handles user business logic
@@ -143,7 +143,7 @@ func (s *Service) GetUserByEmail(email string) (*User, error) {
 // CreateUser creates a new user
 func (s *Service) CreateUser(req CreateUserRequest) (*UserResponse, error) {
 	// Hash the password
-	passwordHash, err := auth.HashPassword(req.Password)
+	passwordHash, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -318,7 +318,7 @@ func (s *Service) ChangePassword(userID int, currentPassword, newPassword string
 	}
 	
 	// Verify current password
-	if !auth.CheckPasswordHash(currentPassword, currentHash) {
+	if !utils.CheckPasswordHash(currentPassword, currentHash) {
 		return fmt.Errorf("current password is incorrect")
 	}
 	
