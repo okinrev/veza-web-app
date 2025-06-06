@@ -2,16 +2,16 @@
 package handlers
 
 import (
-	"veza-web-app/internal/middleware"
-	"veza-web-app/internal/common"
+	"github.com/okinrev/veza-web-app/internal/middleware"
+	"github.com/okinrev/veza-web-app/internal/common"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"veza-web-app/internal/database"
-	"veza-web-app/internal/models"
-	"veza-web-app/internal/utils"
+	"github.com/okinrev/veza-web-app/internal/database"
+	"github.com/okinrev/veza-web-app/internal/models"
+	"github.com/okinrev/veza-web-app/internal/utils"
 )
 
 type UserHandler struct {

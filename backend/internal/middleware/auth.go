@@ -6,7 +6,7 @@ import (
     "strings"
 
     "github.com/gin-gonic/gin"
-    "veza-web-app/internal/utils"
+    "github.com/okinrev/veza-web-app/internal/utils"
 )
 
 // JWTAuthMiddleware validates JWT tokens and sets user context

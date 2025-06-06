@@ -3,8 +3,8 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"veza-web-app/internal/handlers"
-	"veza-web-app/internal/middleware"
+	"github.com/okinrev/veza-web-app/internal/handlers"
+	"github.com/okinrev/veza-web-app/internal/middleware"
 )
 
 func (r *Router) setupUserRoutes(rg *gin.RouterGroup) {

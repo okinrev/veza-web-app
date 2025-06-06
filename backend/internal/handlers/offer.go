@@ -2,15 +2,15 @@
 package handlers
 
 import (
-	"veza-web-app/internal/common"
+	"github.com/okinrev/veza-web-app/internal/common"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"veza-web-app/internal/database"
-	"veza-web-app/internal/middleware"
+	"github.com/okinrev/veza-web-app/internal/database"
+	"github.com/okinrev/veza-web-app/internal/middleware"
 	// "github.com/lib/pq" // Not directly needed here unless manipulating arrays in new ways
 )
 

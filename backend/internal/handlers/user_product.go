@@ -2,16 +2,14 @@
 package handlers
 
 import (
-	"veza-web-app/internal/middleware"
-	"veza-web-app/internal/common"
-	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"veza-web-app/internal/database"
-	"veza-web-app/internal/models"
+	"github.com/okinrev/veza-web-app/internal/common"
+	"github.com/okinrev/veza-web-app/internal/database"
 )
 
 type UserProductHandler struct {
@@ -127,7 +125,161 @@ func (h *UserProductHandler) ListUserProducts(c *gin.Context) {
 
 	// Get total count
 	var total int
-	err := h.db.QueryRow(countQuery, args[:len(args)-1]...).Scan(&total)
+	countArgs := args[:len(args)]
+	if status != "" {
+		countArgs = args
+	} else {
+		countArgs = []interface{}{userID}
+	}
+	
+	err := h.db.QueryRow(countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to count user products",
+		})
+		return
+	}
+
+	// Get products
+	orderClause := " ORDER BY up.purchase_date DESC NULLS LAST, up.created_at DESC LIMIT $" + strconv.Itoa(argCount) + " OFFSET $" + strconv.Itoa(argCount+1)
+	args = append(args, limit, offset)
+
+	rows, err := h.db.Query(baseQuery+orderClause, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to retrieve user products",
+		})
+		return
+	}
+	defer rows.Close()
+
+	products := []UserProductResponse{}
+	for rows.Next() {
+		var product UserProductResponse
+		err := rows.Scan(
+			&product.ID, &product.UserID, &product.ProductID, &product.ProductName,
+			&product.CategoryName, &product.Brand, &product.Model, &product.Version,
+			&product.PurchaseDate, &product.WarrantyExpires, &product.PurchasePrice,
+			&product.SerialNumber, &product.Notes, &product.Status, &product.CreatedAt,
+			&product.UpdatedAt, &product.FilesCount, &product.DocsCount,
+		)
+		if err != nil {
+			continue
+		}
+
+		// Check if under warranty
+		if product.WarrantyExpires != nil {
+			warrantyDate, err := time.Parse("2006-01-02", *product.WarrantyExpires)
+			if err == nil {
+				product.IsUnderWarranty = warrantyDate.After(time.Now())
+			}
+		}
+
+		products = append(products, product)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    products,
+		"meta": gin.H{
+			"page":        page,
+			"per_page":    limit,
+			"total":       total,
+			"total_pages": (total + limit - 1) / limit,
+		},
+	})
+}
+
+// GetUserProduct returns a specific user product
+func (h *UserProductHandler) GetUserProduct(c *gin.Context) {
+	userID, exists := common.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "User not authenticated",
+		})
+		return
+	}
+
+	idStr := c.Param("id")
+	productID, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid product ID",
+		})
+		return
+	}
+
+	product, err := h.getUserProductByID(productID, userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Product not found or not owned by user",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    product,
+	})
+}
+
+// CreateUserProduct adds a product to user's collection
+func (h *UserProductHandler) CreateUserProduct(c *gin.Context) {
+	userID, exists := common.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "User not authenticated",
+		})
+		return
+	}
+
+	var req CreateUserProductRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid request data",
+		})
+		return
+	}
+
+	// Verify that the product exists in the catalog
+	var productExists int
+	err := h.db.QueryRow("SELECT COUNT(*) FROM products WHERE id = $1 AND status = 'active'", req.ProductID).Scan(&productExists)
+	if err != nil || productExists == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Product not found in catalog or not active",
+		})
+		return
+	}
+
+	// Check if user already owns this product
+	var existingCount int
+	err = h.db.QueryRow("SELECT COUNT(*) FROM user_products WHERE user_id = $1 AND product_id = $2", userID, req.ProductID).Scan(&existingCount)
+	if err == nil && existingCount > 0 {
+		c.JSON(http.StatusConflict, gin.H{
+			"success": false,
+			"error":   "Product already exists in your collection",
+		})
+		return
+	}
+
+	// Create user product
+	var userProductID int
+	err = h.db.QueryRow(`
+		INSERT INTO user_products (user_id, product_id, version, purchase_date, warranty_expires, 
+		                           purchase_price, serial_number, notes, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', NOW(), NOW())
+		RETURNING id
+	`, userID, req.ProductID, req.Version, req.PurchaseDate, req.WarrantyExpires,
+		req.PurchasePrice, req.SerialNumber, req.Notes).Scan(&userProductID)
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -564,151 +716,4 @@ func (h *UserProductHandler) getUserProductByID(userProductID, userID int) (*Use
 	}
 
 	return &product, nil
-} {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to count user products",
-		})
-		return
-	}
-
-	// Get products
-	orderClause := " ORDER BY up.purchase_date DESC NULLS LAST, up.created_at DESC LIMIT $" + strconv.Itoa(argCount) + " OFFSET $" + strconv.Itoa(argCount+1)
-	args = append(args, limit, offset)
-
-	rows, err := h.db.Query(baseQuery+orderClause, args...)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to retrieve user products",
-		})
-		return
-	}
-	defer rows.Close()
-
-	products := []UserProductResponse{}
-	for rows.Next() {
-		var product UserProductResponse
-		err := rows.Scan(
-			&product.ID, &product.UserID, &product.ProductID, &product.ProductName,
-			&product.CategoryName, &product.Brand, &product.Model, &product.Version,
-			&product.PurchaseDate, &product.WarrantyExpires, &product.PurchasePrice,
-			&product.SerialNumber, &product.Notes, &product.Status, &product.CreatedAt,
-			&product.UpdatedAt, &product.FilesCount, &product.DocsCount,
-		)
-		if err != nil {
-			continue
-		}
-
-		// Check if under warranty
-		if product.WarrantyExpires != nil {
-			warrantyDate, err := time.Parse("2006-01-02", *product.WarrantyExpires)
-			if err == nil {
-				product.IsUnderWarranty = warrantyDate.After(time.Now())
-			}
-		}
-
-		products = append(products, product)
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    products,
-		"meta": gin.H{
-			"page":        page,
-			"per_page":    limit,
-			"total":       total,
-			"total_pages": (total + limit - 1) / limit,
-		},
-	})
 }
-
-// GetUserProduct returns a specific user product
-func (h *UserProductHandler) GetUserProduct(c *gin.Context) {
-	userID, exists := common.GetUserIDFromContext(c)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"error":   "User not authenticated",
-		})
-		return
-	}
-
-	idStr := c.Param("id")
-	productID, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid product ID",
-		})
-		return
-	}
-
-	product, err := h.getUserProductByID(productID, userID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Product not found or not owned by user",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    product,
-	})
-}
-
-// CreateUserProduct adds a product to user's collection
-func (h *UserProductHandler) CreateUserProduct(c *gin.Context) {
-	userID, exists := common.GetUserIDFromContext(c)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"error":   "User not authenticated",
-		})
-		return
-	}
-
-	var req CreateUserProductRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request data",
-		})
-		return
-	}
-
-	// Verify that the product exists in the catalog
-	var productExists int
-	err := h.db.QueryRow("SELECT COUNT(*) FROM products WHERE id = $1 AND status = 'active'", req.ProductID).Scan(&productExists)
-	if err != nil || productExists == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Product not found in catalog or not active",
-		})
-		return
-	}
-
-	// Check if user already owns this product
-	var existingCount int
-	err = h.db.QueryRow("SELECT COUNT(*) FROM user_products WHERE user_id = $1 AND product_id = $2", userID, req.ProductID).Scan(&existingCount)
-	if err == nil && existingCount > 0 {
-		c.JSON(http.StatusConflict, gin.H{
-			"success": false,
-			"error":   "Product already exists in your collection",
-		})
-		return
-	}
-
-	// Create user product
-	var userProductID int
-	err = h.db.QueryRow(`
-		INSERT INTO user_products (user_id, product_id, version, purchase_date, warranty_expires, 
-		                           purchase_price, serial_number, notes, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', NOW(), NOW())
-		RETURNING id
-	`, userID, req.ProductID, req.Version, req.PurchaseDate, req.WarrantyExpires,
-		req.PurchasePrice, req.SerialNumber, req.Notes).Scan(&userProductID)
-
-	if err != nil

@@ -2,7 +2,7 @@
 package handlers
 
 import (
-	"veza-web-app/internal/common"
+	"github.com/okinrev/veza-web-app/internal/common"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -13,9 +13,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
-	"veza-web-app/internal/database"
-	"veza-web-app/internal/middleware"
-	"veza-web-app/internal/models"
+	"github.com/okinrev/veza-web-app/internal/database"
+	"github.com/okinrev/veza-web-app/internal/middleware"
+	"github.com/okinrev/veza-web-app/internal/models"
 )
 
 type GlobalSearchResult struct {

@@ -6,7 +6,6 @@ import (
     "crypto/sha256"
     "encoding/hex"
     "fmt"
-    "strconv"
     "time"
 
     "github.com/golang-jwt/jwt/v5"
@@ -32,7 +31,7 @@ type Claims struct {
 }
 
 // JWT functions
-func GenerateTokenPair(userID int, username, role, secret string) (access, refresh string, expiresIn int64, error) {
+func GenerateTokenPair(userID int, username, role, secret string) (access string, refresh string, expiresIn int64, err error) {
     // Access token (1 hour)
     accessToken, expiresIn, err := GenerateAccessToken(userID, username, role, secret)
     if err != nil {

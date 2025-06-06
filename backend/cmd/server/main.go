@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	"veza-web-app/internal/config"
-	"veza-web-app/internal/database"
-	"veza-web-app/internal/routes"
+	"github.com/okinrev/veza-web-app/internal/config"
+	"github.com/okinrev/veza-web-app/internal/database"
+	"github.com/okinrev/veza-web-app/internal/routes"
 
 	"github.com/joho/godotenv"
 )

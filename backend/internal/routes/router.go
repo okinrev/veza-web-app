@@ -7,9 +7,9 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"veza-web-app/internal/database"
-	"veza-web-app/internal/handlers"
-	"veza-web-app/internal/middleware"
+	"github.com/okinrev/veza-web-app/internal/database"
+	"github.com/okinrev/veza-web-app/internal/handlers"
+	"github.com/okinrev/veza-web-app/internal/middleware"
 )
 
 type Router struct {
