@@ -93,6 +93,15 @@ func setupRouter(cfg *config.Config) *gin.Engine {
 			"environment": cfg.Server.Environment,
 		})
 	})
+
+	// Servir les fichiers HTML/CSS/JS statiques
+	router.Static("/public", "../frontend/public")
+
+	// Rediriger "/" vers "/public/login.html"
+	router.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/public/login.html")
+	})
+
 	
 	return router
 }
