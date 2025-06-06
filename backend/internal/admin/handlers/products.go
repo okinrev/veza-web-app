@@ -4,13 +4,13 @@ package handlers
 
 import (
     "net/http"
-    "veza-web-app/internal/admin/services"
-    "veza-web-app/internal/models/admin"
-    "veza-web-app/internal/utils/response"  // ADD THIS
-    "veza-web-app/internal/common"
+    "github.com/okinrev/veza-web-app/internal/admin/services"
+    "github.com/okinrev/veza-web-app/internal/models/admin"
+    "github.com/okinrev/veza-web-app/internal/utils/response"  // ADD THIS
+    "github.com/okinrev/veza-web-app/internal/common"
     
-    "veza-web-app/pkg/logger"
-    "veza-web-app/internal/middleware"
+    "github.com/okinrev/veza-web-app/pkg/logger"
+    "github.com/okinrev/veza-web-app/internal/middleware"
     "github.com/gin-gonic/gin"
 )
 

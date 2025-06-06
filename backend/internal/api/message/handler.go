@@ -4,9 +4,9 @@ package message
 import (
 	"net/http"
 	"strconv"
-	"veza-web-app/internal/api/middleware"
-	"veza-web-app/internal/utils/response"  // ADD THIS
-    "veza-web-app/internal/common"
+	"github.com/okinrev/veza-web-app/internal/api/middleware"
+	"github.com/okinrev/veza-web-app/internal/utils/response"  // ADD THIS
+    "github.com/okinrev/veza-web-app/internal/common"
 
 	"github.com/gin-gonic/gin"
 )

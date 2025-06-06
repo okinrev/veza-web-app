@@ -5,7 +5,7 @@ import (
     "net/http"
     "strconv"
 
-    "veza-web-app/internal/api/middleware"
+    "github.com/okinrev/veza-web-app/internal/api/middleware"
     
     "github.com/gin-gonic/gin"
 )

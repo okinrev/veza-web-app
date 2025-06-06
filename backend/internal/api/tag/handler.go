@@ -3,9 +3,9 @@ package tag
 
 import (
 	"net/http"
-	"veza-web-app/internal/utils/response"  // ADD THIS
-    "veza-web-app/internal/common"
-    "veza-web-app/internal/middleware"
+	"github.com/okinrev/veza-web-app/internal/utils/response"  // ADD THIS
+    "github.com/okinrev/veza-web-app/internal/common"
+    "github.com/okinrev/veza-web-app/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )

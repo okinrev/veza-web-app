@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"veza-web-app/internal/database"
-	"veza-web-app/internal/models"
-	"veza-web-app/internal/utils"
+	"github.com/okinrev/veza-web-app/internal/database"
+	"github.com/okinrev/veza-web-app/internal/models"
+	"github.com/okinrev/veza-web-app/internal/utils"
 )
 
 type AuthService interface {

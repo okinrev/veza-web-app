@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"veza-web-app/internal/utils/auth"
+	"github.com/okinrev/veza-web-app/internal/utils/auth"
 )
 
 // Service handles user business logic

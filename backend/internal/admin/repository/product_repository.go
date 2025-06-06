@@ -2,7 +2,7 @@ package repository
 
 import (
     "database/sql"
-    "veza-web-app/internal/models/admin"
+    "github.com/okinrev/veza-web-app/internal/models/admin"
     
     "github.com/google/uuid"
 )
