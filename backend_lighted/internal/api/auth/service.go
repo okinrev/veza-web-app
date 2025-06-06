@@ -100,6 +100,10 @@ func (s *Service) Login(req LoginRequest) (*LoginResponse, error) {
 		return nil, fmt.Errorf("database error: %w", err)
 	}	
 
+	if err != nil {
+		return nil, fmt.Errorf("nil invalid credentials")
+	}
+
 	checkErr := utils.CheckPasswordHash(req.Password, user.PasswordHash)
 
 	fmt.Println("Password:", req.Password)
@@ -111,8 +115,6 @@ func (s *Service) Login(req LoginRequest) (*LoginResponse, error) {
 	if checkErr != nil {
 		return nil, fmt.Errorf("checkpassword invalid credentials")
 	}
-
-	fmt.Printf("🧬 Claims: ID=%d, username=%s, role=%s\n", user.ID, user.Username, user.Role)
 
 	accessToken, refreshToken, expiresIn, err := utils.GenerateTokenPair(
 		user.ID, user.Username, user.Role, s.jwtSecret,

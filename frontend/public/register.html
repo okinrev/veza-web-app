@@ -437,7 +437,8 @@
                 this.message = { text: '', type: 'error' };
 
                 try {
-                    const response = await fetch('/signup', {
+                    const response = await fetch('/api/v1/auth/signup', {
+
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json' 
@@ -466,7 +467,7 @@
 
                         // Redirection automatique après 3 secondes
                         setTimeout(() => {
-                            this.goToPage('/shared_ressources');
+                            this.goToPage('/public/chat.html');
                         }, 3000);
 
                     } else {

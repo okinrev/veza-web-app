@@ -61,12 +61,11 @@ func (h *Handler) Login(c *gin.Context) {
 
 	loginResp, err := h.service.Login(req)
 	if err != nil {
-		fmt.Println("❌ ERREUR handler login:", err) // <--- AJOUTE CECI
-		response.ErrorJSON(c, http.StatusUnauthorized, err.Error()) // pour voir le vrai message
+		response.ErrorJSON(c.Writer, "test_to_see_if_it_comes_from_here_rather_than_from_the_service_file Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	response.SuccessJSON(c, http.StatusOK, loginResp, "Login successful")
+	response.SuccessJSON(c.Writer, loginResp, "Login successful")
 }
 
 func (h *Handler) RefreshToken(c *gin.Context) {
