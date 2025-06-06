@@ -41,6 +41,20 @@ type JWTConfig struct {
 }
 
 func New() *Config {
+    // Récupérer DATABASE_URL depuis l'environnement
+    databaseURL := getEnv("DATABASE_URL", "")
+    if databaseURL == "" {
+        // Construire l'URL si pas définie
+        host := getEnv("DB_HOST", "localhost")
+        port := getEnv("DB_PORT", "5432")
+        username := getEnv("DB_USERNAME", "postgres")
+        password := getEnv("DB_PASSWORD", "")
+        database := getEnv("DB_NAME", "veza")
+        sslmode := getEnv("DB_SSLMODE", "disable")
+        
+        databaseURL = "postgres://" + username + ":" + password + "@" + host + ":" + port + "/" + database + "?sslmode=" + sslmode
+    }
+
     return &Config{
         Server: ServerConfig{
             Port:            getEnv("PORT", "8080"),
@@ -50,7 +64,7 @@ func New() *Config {
             Environment:     getEnv("ENVIRONMENT", "development"),
         },
         Database: DatabaseConfig{
-            URL:          getEnv("DATABASE_URL", ""),
+            URL:          databaseURL,
             Host:         getEnv("DB_HOST", "localhost"),
             Port:         getEnv("DB_PORT", "5432"),
             Username:     getEnv("DB_USERNAME", "postgres"),
