@@ -1,3 +1,4 @@
+// internal/utils/response/response.go
 package response
 
 import (
@@ -5,26 +6,55 @@ import (
     "net/http"
 )
 
-// WriteJSON écrit directement une réponse JSON
-func WriteJSON(w http.ResponseWriter, data interface{}, status int) error {
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(status)
-    return json.NewEncoder(w).Encode(data)
+type APIResponse struct {
+    Success bool        `json:"success"`
+    Data    interface{} `json:"data,omitempty"`
+    Message string      `json:"message,omitempty"`
+    Error   string      `json:"error,omitempty"`
+    Meta    *Meta       `json:"meta,omitempty"`
 }
 
-// ValidationErrorJSON envoie une réponse d'erreur de validation
-func ValidationErrorJSON(w http.ResponseWriter, errors map[string]string) {
+type Meta struct {
+    Page       int `json:"page,omitempty"`
+    PerPage    int `json:"per_page,omitempty"`
+    Total      int `json:"total,omitempty"`
+    TotalPages int `json:"total_pages,omitempty"`
+}
+
+func SuccessJSON(w http.ResponseWriter, data interface{}, message string) {
     w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusBadRequest)
+    w.WriteHeader(http.StatusOK)
     
-    response := struct {
-        Error   string            `json:"error"`
-        Code    string            `json:"code"`
-        Details map[string]string `json:"details"`
-    }{
-        Error:   "Validation failed",
-        Code:    "VALIDATION_ERROR",
-        Details: errors,
+    response := APIResponse{
+        Success: true,
+        Data:    data,
+        Message: message,
+    }
+    
+    json.NewEncoder(w).Encode(response)
+}
+
+func ErrorJSON(w http.ResponseWriter, error string, statusCode int) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(statusCode)
+    
+    response := APIResponse{
+        Success: false,
+        Error:   error,
+    }
+    
+    json.NewEncoder(w).Encode(response)
+}
+
+func PaginatedJSON(w http.ResponseWriter, data interface{}, meta *Meta, message string) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    
+    response := APIResponse{
+        Success: true,
+        Data:    data,
+        Message: message,
+        Meta:    meta,
     }
     
     json.NewEncoder(w).Encode(response)

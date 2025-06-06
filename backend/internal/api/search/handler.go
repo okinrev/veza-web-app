@@ -3,7 +3,9 @@ package search
 
 import (
 	"net/http"
-	"veza-web-app/internal/utils/response"
+	"veza-web-app/internal/utils/response"  // ADD THIS
+    "veza-web-app/internal/common"
+    "veza-web-app/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )

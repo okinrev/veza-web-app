@@ -6,9 +6,11 @@ import (
     "net/http"
     "veza-web-app/internal/admin/services"
     "veza-web-app/internal/models/admin"
-    "veza-web-app/internal/utils/response"
-    "veza-web-app/pkg/logger"
+    "veza-web-app/internal/utils/response"  // ADD THIS
+    "veza-web-app/internal/common"
     
+    "veza-web-app/pkg/logger"
+    "veza-web-app/internal/middleware"
     "github.com/gin-gonic/gin"
 )
 

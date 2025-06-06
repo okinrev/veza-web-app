@@ -4,7 +4,8 @@ package room
 import (
 	"net/http"
 	"veza-web-app/internal/api/middleware"
-	"veza-web-app/internal/utils/response"
+	"veza-web-app/internal/utils/response"  // ADD THIS
+    "veza-web-app/internal/common"
 
 	"github.com/gin-gonic/gin"
 )

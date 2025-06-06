@@ -3,9 +3,12 @@ package suggestions
 
 import (
 	"net/http"
-	"veza-web-app/internal/utils/response"
+	"veza-web-app/internal/utils/response"  // ADD THIS
+    "veza-web-app/internal/common"
 
 	"github.com/gin-gonic/gin"
+	"veza-web-app/internal/middleware"
+	"veza-web-app/internal/common"
 )
 
 type Handler struct{}

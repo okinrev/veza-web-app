@@ -12,7 +12,6 @@ import (
 // JWTAuthMiddleware validates JWT tokens and sets user context
 func JWTAuthMiddleware(jwtSecret string) gin.HandlerFunc {
     return func(c *gin.Context) {
-        // Get token from Authorization header
         authHeader := c.GetHeader("Authorization")
         if authHeader == "" {
             c.JSON(http.StatusUnauthorized, gin.H{
@@ -23,7 +22,6 @@ func JWTAuthMiddleware(jwtSecret string) gin.HandlerFunc {
             return
         }
 
-        // Check if the header starts with "Bearer "
         if !strings.HasPrefix(authHeader, "Bearer ") {
             c.JSON(http.StatusUnauthorized, gin.H{
                 "success": false,
@@ -33,9 +31,7 @@ func JWTAuthMiddleware(jwtSecret string) gin.HandlerFunc {
             return
         }
 
-        tokenString := authHeader[7:] // Remove "Bearer " prefix
-
-        // Verify token
+        tokenString := authHeader[7:]
         claims, err := utils.ValidateJWT(tokenString, jwtSecret)
         if err != nil {
             c.JSON(http.StatusUnauthorized, gin.H{
@@ -46,11 +42,9 @@ func JWTAuthMiddleware(jwtSecret string) gin.HandlerFunc {
             return
         }
 
-        // Set user information in the context
         c.Set("user_id", claims.UserID)
         c.Set("username", claims.Username)
         c.Set("user_role", claims.Role)
-
         c.Next()
     }
 }
@@ -94,7 +88,6 @@ func RequireRole(roles ...string) gin.HandlerFunc {
             return
         }
 
-        // Check if user has one of the required roles
         hasRole := false
         for _, requiredRole := range roles {
             if role == requiredRole {
