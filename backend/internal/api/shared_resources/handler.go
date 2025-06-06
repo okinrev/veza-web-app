@@ -78,7 +78,7 @@ func (h *Handler) ListSharedResources(c *gin.Context) {
 }
 
 func (h *Handler) SearchSharedResources(c *gin.Context) {
-	query := c.Query("q")
+	_ = c.Query("q")
 	// TODO: Implement search
 	results := []map[string]interface{}{}
 	response.SuccessJSON(c.Writer, results, "Search completed")
@@ -95,6 +95,6 @@ func (h *Handler) DeleteSharedResource(c *gin.Context) {
 }
 
 func (h *Handler) ServeSharedFile(c *gin.Context) {
-	filename := c.Param("filename")
+	_ = c.Param("filename")
 	response.ErrorJSON(c.Writer, "File serving not implemented yet", http.StatusNotImplemented)
 }

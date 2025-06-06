@@ -323,7 +323,7 @@ func (s *Service) ChangePassword(userID int, currentPassword, newPassword string
 	}
 	
 	// Hash new password
-	newHash, err := auth.HashPassword(newPassword)
+	newHash, err := utils.HashPassword(newPassword)
 	if err != nil {
 		return fmt.Errorf("failed to hash new password: %w", err)
 	}

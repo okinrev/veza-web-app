@@ -4,8 +4,6 @@ package tag
 import (
 	"net/http"
 	"github.com/okinrev/veza-web-app/internal/utils/response"  // ADD THIS
-    "github.com/okinrev/veza-web-app/internal/common"
-    "github.com/okinrev/veza-web-app/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
