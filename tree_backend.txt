@@ -41,14 +41,6 @@ backend
 │   │   │   └── handler.go
 │   │   ├── message
 │   │   │   └── handler.go
-│   │   ├── middleware
-│   │   │   ├── auth.go
-│   │   │   ├── cors.go
-│   │   │   ├── jwt.go
-│   │   │   ├── logging.go
-│   │   │   ├── rate_limit.go
-│   │   │   ├── security.go
-│   │   │   └── validation.go
 │   │   ├── offer
 │   │   │   └── handler.go
 │   │   ├── room
@@ -107,6 +99,8 @@ backend
 │   │   ├── track.go
 │   │   ├── user.go
 │   │   └── user_product.go
+│   ├── middleware
+│   │   └── auth.go
 │   ├── models
 │   │   ├── admin.go
 │   │   ├── chat.go
@@ -142,22 +136,15 @@ backend
 │   │   ├── track_service.go
 │   │   └── user_service.go
 │   └── utils
-│       ├── auth
-│       │   ├── hash.go
-│       │   ├── jwt.go
-│       │   └── permissions.go
+│       ├── auth.go
 │       ├── errors
 │       │   └── handler.go
 │       ├── files
 │       │   └── signedurl.go
-│       ├── hash
-│       │   └── hash.go
 │       ├── response
 │       │   ├── json.go
 │       │   └── response.go
 │       └── validation
-│           ├── hash.go
-│           └── signedurl.go
 ├── Makefile
 ├── modules
 │   ├── chat_server
@@ -218,4 +205,4 @@ backend
     └── uploads
         └── 1_1747129598_test_upload.txt
 
-59 directories, 160 files
+57 directories, 149 files
