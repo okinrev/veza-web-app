@@ -1,0 +1,111 @@
+.header {
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 4rem;
+    padding: 0 1rem;
+
+    &-brand {
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+
+            img {
+                height: 2.5rem;
+                width: auto;
+            }
+        }
+    }
+
+    &-menu {
+        display: flex;
+        gap: 1.5rem;
+
+        .nav-link {
+            color: $dark-color;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+
+            &:hover {
+                color: $primary-color;
+            }
+
+            &.active {
+                color: $primary-color;
+            }
+        }
+    }
+
+    &-auth {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+
+        .auth-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+    }
+}
+
+.user-menu {
+    position: relative;
+
+    .btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .avatar {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .dropdown-menu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background-color: white;
+        border-radius: 0.25rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        min-width: 200px;
+        display: none;
+        z-index: 1000;
+
+        &.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: $dark-color;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+
+            &:hover {
+                background-color: $light-color;
+            }
+
+            &.danger {
+                color: $danger-color;
+            }
+        }
+    }
+} 

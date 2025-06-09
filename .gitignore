@@ -28,3 +28,7 @@ target/
 tree.txt
 all/
 bin/
+node_modules/
+.parcel-cache/
+dist/
+.DS_Store

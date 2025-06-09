@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de Bord - Veza</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>Tableau de Bord</h1>
+            <nav class="main-nav">
+                <a href="dashboard.html" class="active">Tableau de bord</a>
+                <a href="listings/listings.html">Annonces</a>
+                <a href="chat/chat.html">Messages</a>
+                <a href="users/profile.html">Profil</a>
+            </nav>
+        </header>
+
+        <main class="dashboard-content">
+            <section class="dashboard-stats">
+                <div class="stat-card">
+                    <h3>Mes Annonces</h3>
+                    <p class="stat-number">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Messages Non Lus</h3>
+                    <p class="stat-number">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Vues Totales</h3>
+                    <p class="stat-number">0</p>
+                </div>
+            </section>
+
+            <section class="recent-activity">
+                <h2>Activité Récente</h2>
+                <div class="activity-list">
+                    <!-- L'activité récente sera chargée dynamiquement -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="../scripts/dashboard.js"></script>
+</body>
+</html> 

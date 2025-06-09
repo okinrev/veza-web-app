@@ -1,81 +1,147 @@
 package api
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
-	
+
 	"github.com/okinrev/veza-web-app/internal/config"
 	"github.com/okinrev/veza-web-app/internal/database"
-	
-	"github.com/okinrev/veza-web-app/internal/api/auth"
-	"github.com/okinrev/veza-web-app/internal/api/user"
+	"github.com/okinrev/veza-web-app/internal/middleware"
+
 	"github.com/okinrev/veza-web-app/internal/api/admin"
-	"github.com/okinrev/veza-web-app/internal/api/track"
+	"github.com/okinrev/veza-web-app/internal/api/auth"
+	"github.com/okinrev/veza-web-app/internal/api/chat"
 	"github.com/okinrev/veza-web-app/internal/api/listing"
-	"github.com/okinrev/veza-web-app/internal/api/offer"
 	"github.com/okinrev/veza-web-app/internal/api/message"
+	"github.com/okinrev/veza-web-app/internal/api/offer"
 	"github.com/okinrev/veza-web-app/internal/api/room"
 	"github.com/okinrev/veza-web-app/internal/api/search"
-	"github.com/okinrev/veza-web-app/internal/api/tag"
 	"github.com/okinrev/veza-web-app/internal/api/shared_resources"
+	"github.com/okinrev/veza-web-app/internal/api/tag"
+	"github.com/okinrev/veza-web-app/internal/api/track"
+	"github.com/okinrev/veza-web-app/internal/api/user"
 )
 
-// SetupRoutes configure toutes les routes API
-func SetupRoutes(router *gin.Engine, db *database.DB, cfg *config.Config) {
+// APIRouter gère la configuration des routes de l'API
+type APIRouter struct {
+	db     *database.DB
+	config *config.Config
+	engine *gin.Engine
+}
+
+// NewAPIRouter crée une nouvelle instance de APIRouter
+func NewAPIRouter(db *database.DB, cfg *config.Config) *APIRouter {
+	return &APIRouter{
+		db:     db,
+		config: cfg,
+	}
+}
+
+// Setup configure toutes les routes de l'API
+func (r *APIRouter) Setup(router *gin.Engine) {
+	r.engine = router
+
+	// Middlewares globaux
+	router.Use(middleware.Logger())
+	router.Use(middleware.Recovery())
+	router.Use(middleware.CORS())
+	router.Use(middleware.RequestID())
+	router.Use(middleware.RateLimiter(100, time.Minute)) // 100 requêtes par minute par IP
+
 	// Groupe API v1
 	v1 := router.Group("/api/v1")
-	
-	// Auth routes
-	authService := auth.NewService(db, cfg.JWT.Secret)
+	{
+		// Configuration des services et handlers
+		r.setupAuthRoutes(v1)
+		r.setupUserRoutes(v1)
+		r.setupAdminRoutes(v1)
+		r.setupTrackRoutes(v1)
+		r.setupListingRoutes(v1)
+		r.setupOfferRoutes(v1)
+		r.setupMessageRoutes(v1)
+		r.setupRoomRoutes(v1)
+		r.setupSearchRoutes(v1)
+		r.setupTagRoutes(v1)
+		r.setupSharedResourcesRoutes(v1)
+		r.setupChatRoutes(v1)
+	}
+}
+
+// Méthodes de configuration des routes par module
+func (r *APIRouter) setupAuthRoutes(router *gin.RouterGroup) {
+	authService := auth.NewService(r.db, r.config.JWT.Secret)
 	authHandler := auth.NewHandler(authService)
-	auth.SetupRoutes(v1, authHandler, cfg.JWT.Secret)
-	
-	// User routes
-	userService := user.NewService(db)
+	auth.SetupRoutes(router, authHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupUserRoutes(router *gin.RouterGroup) {
+	userService := user.NewService(r.db)
 	userHandler := user.NewHandler(userService)
-	user.SetupRoutes(v1, userHandler, cfg.JWT.Secret)
-	
-	// Admin routes
-	adminService := admin.NewService(db)
+	user.SetupRoutes(router, userHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupAdminRoutes(router *gin.RouterGroup) {
+	adminService := admin.NewService(r.db)
 	adminHandler := admin.NewHandler(adminService)
-	admin.SetupRoutes(v1, adminHandler, cfg.JWT.Secret)
-	
-	// Track routes
-	trackService := track.NewService(db, cfg.JWT.Secret)
+	admin.SetupRoutes(router, adminHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupTrackRoutes(router *gin.RouterGroup) {
+	trackService := track.NewService(r.db, r.config.JWT.Secret)
 	trackHandler := track.NewHandler(trackService)
-	track.SetupRoutes(v1, trackHandler, cfg.JWT.Secret)
-	
-	// Listing routes
-	listingService := listing.NewService(db)
+	track.SetupRoutes(router, trackHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupListingRoutes(router *gin.RouterGroup) {
+	listingService := listing.NewService(r.db)
 	listingHandler := listing.NewHandler(listingService)
-	listing.SetupRoutes(v1, listingHandler, cfg.JWT.Secret)
-	
-	// Offer routes
-	offerService := offer.NewService(db)
+	listing.SetupRoutes(router, listingHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupOfferRoutes(router *gin.RouterGroup) {
+	offerService := offer.NewService(r.db)
 	offerHandler := offer.NewHandler(offerService)
-	offer.SetupRoutes(v1, offerHandler, cfg.JWT.Secret)
-	
-	// Message routes
-	messageService := message.NewService(db)
+	offer.SetupRoutes(router, offerHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupMessageRoutes(router *gin.RouterGroup) {
+	messageService := message.NewService(r.db)
 	messageHandler := message.NewHandler(messageService)
-	message.SetupRoutes(v1, messageHandler, cfg.JWT.Secret)
-	
-	// Room routes
-	roomService := room.NewService(db)
+	message.SetupRoutes(router, messageHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupRoomRoutes(router *gin.RouterGroup) {
+	roomService := room.NewService(r.db)
 	roomHandler := room.NewHandler(roomService)
-	room.SetupRoutes(v1, roomHandler, cfg.JWT.Secret)
-	
-	// Search routes
-	searchService := search.NewService(db)
+	room.SetupRoutes(router, roomHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupSearchRoutes(router *gin.RouterGroup) {
+	searchService := search.NewService(r.db)
 	searchHandler := search.NewHandler(searchService)
-	search.SetupRoutes(v1, searchHandler, cfg.JWT.Secret)
-	
-	// Tag routes
-	tagService := tag.NewService(db)
+	search.SetupRoutes(router, searchHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupTagRoutes(router *gin.RouterGroup) {
+	tagService := tag.NewService(r.db)
 	tagHandler := tag.NewHandler(tagService)
-	tag.SetupRoutes(v1, tagHandler, cfg.JWT.Secret)
-	
-	// Shared resources routes
-	sharedResourcesService := shared_resources.NewService(db)
+	tag.SetupRoutes(router, tagHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupSharedResourcesRoutes(router *gin.RouterGroup) {
+	sharedResourcesService := shared_resources.NewService(r.db)
 	sharedResourcesHandler := shared_resources.NewHandler(sharedResourcesService)
-	shared_resources.SetupRoutes(v1, sharedResourcesHandler, cfg.JWT.Secret)
+	shared_resources.SetupRoutes(router, sharedResourcesHandler, r.config.JWT.Secret)
+}
+
+func (r *APIRouter) setupChatRoutes(router *gin.RouterGroup) {
+	chatHandler := chat.NewHandler(r.db)
+	chat.RegisterRoutes(r.engine, chatHandler, r.config.JWT.Secret)
+}
+
+// SetupRoutes configure toutes les routes API (pour la compatibilité)
+func SetupRoutes(router *gin.Engine, db *database.DB, cfg *config.Config) {
+	apiRouter := NewAPIRouter(db, cfg)
+	apiRouter.Setup(router)
 }

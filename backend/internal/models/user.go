@@ -3,6 +3,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 )
 
@@ -43,7 +44,8 @@ type UserResponse struct {
 
 // ToResponse converts User to UserResponse (removing sensitive data)
 func (u *User) ToResponse() *UserResponse {
-	return &UserResponse{
+	fmt.Printf("🔄 Conversion de l'utilisateur en réponse: %+v\n", u)
+	response := &UserResponse{
 		ID:          u.ID,
 		Username:    u.Username,
 		Email:       u.Email,
@@ -58,6 +60,8 @@ func (u *User) ToResponse() *UserResponse {
 		CreatedAt:   u.CreatedAt,
 		UpdatedAt:   u.UpdatedAt,
 	}
+	fmt.Printf("✅ Réponse utilisateur générée: %+v\n", response)
+	return response
 }
 
 // RefreshToken represents a JWT refresh token

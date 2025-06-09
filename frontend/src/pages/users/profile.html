@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil - Veza</title>
+    <link rel="stylesheet" href="../../styles/main.css">
+    <link rel="stylesheet" href="../../styles/profile.css">
+</head>
+<body>
+    <div class="profile-container">
+        <header class="profile-header">
+            <h1>Profil</h1>
+            <nav class="main-nav">
+                <a href="../dashboard.html">Tableau de bord</a>
+                <a href="../listings/listings.html">Annonces</a>
+                <a href="../chat/chat.html">Messages</a>
+                <a href="profile.html" class="active">Profil</a>
+            </nav>
+        </header>
+
+        <main class="profile-content">
+            <section class="profile-info">
+                <div class="profile-header">
+                    <div class="profile-avatar">
+                        <img id="userAvatar" src="../../assets/default-avatar.png" alt="Avatar">
+                        <button id="changeAvatar" class="btn-secondary">Changer</button>
+                    </div>
+                    <div class="profile-details">
+                        <h2 id="userName">Nom d'utilisateur</h2>
+                        <p id="userEmail">email@example.com</p>
+                    </div>
+                </div>
+
+                <div class="profile-sections">
+                    <div class="section">
+                        <h3>Informations personnelles</h3>
+                        <form id="profileForm">
+                            <div class="form-group">
+                                <label for="firstName">Prénom</label>
+                                <input type="text" id="firstName" name="firstName">
+                            </div>
+                            <div class="form-group">
+                                <label for="lastName">Nom</label>
+                                <input type="text" id="lastName" name="lastName">
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Téléphone</label>
+                                <input type="tel" id="phone" name="phone">
+                            </div>
+                            <button type="submit" class="btn-primary">Enregistrer</button>
+                        </form>
+                    </div>
+
+                    <div class="section">
+                        <h3>Sécurité</h3>
+                        <form id="passwordForm">
+                            <div class="form-group">
+                                <label for="currentPassword">Mot de passe actuel</label>
+                                <input type="password" id="currentPassword" name="currentPassword">
+                            </div>
+                            <div class="form-group">
+                                <label for="newPassword">Nouveau mot de passe</label>
+                                <input type="password" id="newPassword" name="newPassword">
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPassword">Confirmer le mot de passe</label>
+                                <input type="password" id="confirmPassword" name="confirmPassword">
+                            </div>
+                            <button type="submit" class="btn-primary">Changer le mot de passe</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="../../scripts/profile.js"></script>
+</body>
+</html> 

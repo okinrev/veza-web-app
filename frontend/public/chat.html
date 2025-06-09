@@ -569,7 +569,7 @@
             async checkAuth() {
                 const token = localStorage.getItem('access_token');
                 if (!token) {
-                    window.location.href = '/login';
+                    window.location.href = 'login.html';
                     return false;
                 }
 
@@ -579,14 +579,15 @@
                     
                     if (payload.exp && payload.exp < Date.now() / 1000) {
                         localStorage.removeItem('access_token');
-                        window.location.href = '/login';
+                        window.location.href = 'login.html';
                         return false;
                     }
                     
                     return true;
                 } catch (e) {
-                    this.showNotification('Erreur d\'authentification', 'error');
-                    window.location.href = '/login';
+                    console.error('Erreur lors de la vérification du token:', e);
+                    localStorage.removeItem('access_token');
+                    window.location.href = 'login.html';
                     return false;
                 }
             },
@@ -600,7 +601,7 @@
                 }
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
-                window.location.href = '/login';
+                window.location.href = 'login.html';
             },
 
             goBack() {
@@ -615,20 +616,28 @@
             async loadUserInfo() {
                 try {
                     const token = localStorage.getItem('access_token');
+                    if (!token) {
+                        console.error('Pas de token trouvé');
+                        window.location.href = '/login';
+                        return;
+                    }
                     
                     try {
-                        const meResponse = await fetch('/me', {
+                        const meResponse = await fetch('/api/v1/users/me', {
                             headers: { 'Authorization': 'Bearer ' + token }
                         });
                         
                         if (meResponse.ok) {
                             const meData = await meResponse.json();
                             this.myUserId = meData.id;
+                            console.log('Informations utilisateur chargées avec succès');
                         } else {
+                            console.warn('Impossible de récupérer les infos utilisateur, utilisation du token');
                             const payload = JSON.parse(atob(token.split('.')[1]));
                             this.myUserId = payload.user_id || payload.id || payload.sub;
                         }
                     } catch (error) {
+                        console.warn('Erreur lors de la récupération des infos utilisateur:', error);
                         const payload = JSON.parse(atob(token.split('.')[1]));
                         this.myUserId = payload.user_id || payload.id || payload.sub;
                     }
@@ -638,7 +647,8 @@
                         await this.loadOtherUserInfo();
                     }
                 } catch (error) {
-                    console.error('Erreur chargement utilisateur:', error);
+                    console.error('Erreur critique lors du chargement utilisateur:', error);
+                    window.location.href = '/login';
                 }
             },
 
@@ -694,16 +704,25 @@
             async loadRooms() {
                 try {
                     const token = localStorage.getItem('access_token');
-                    const response = await fetch('/chat/rooms', {
+                    if (!token) {
+                        console.error('Pas de token pour charger les salons');
+                        return;
+                    }
+
+                    const response = await fetch('/api/v1/chat/rooms', {
                         headers: { 'Authorization': 'Bearer ' + token }
                     });
 
                     if (response.ok) {
-                        this.rooms = await response.json();
+                        const data = await response.json();
+                        this.rooms = data.rooms || [];
                         this.roomStats.totalRooms = this.rooms.length;
+                        console.log('Salons chargés avec succès:', this.rooms);
+                    } else {
+                        console.error('Erreur lors du chargement des salons:', response.status);
                     }
                 } catch (error) {
-                    this.showNotification('Erreur lors du chargement des salons', 'error');
+                    console.error('Erreur lors du chargement des salons:', error);
                 }
             },
 
@@ -909,60 +928,54 @@
             // ===== WEBSOCKET =====
 
             async connectWebSocket() {
+                const token = localStorage.getItem('access_token');
+                if (!token) {
+                    console.error('Pas de token pour la connexion WebSocket');
+                    return;
+                }
+
                 try {
-                    const token = localStorage.getItem('access_token');
+                    // Utiliser le port 8080 pour le WebSocket
+                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${wsProtocol}//${window.location.host}/ws/chat?token=${token}`;
                     
-                    if (this.socket) {
-                        this.socket.onclose = null;
-                        this.socket.onerror = null;
-                        this.socket.close();
-                        this.socket = null;
-                    }
-                    
-                    this.socket = new WebSocket(`ws://localhost:9001/?token=${token}`);
-                    
+                    console.log('Tentative de connexion WebSocket à:', wsUrl);
+                    this.socket = new WebSocket(wsUrl);
+
                     this.socket.onopen = () => {
+                        console.log('WebSocket connecté');
                         this.isConnected = true;
-                        this.showNotification('Connexion établie', 'success');
-                        
-                        // Si on est en mode DM avec un utilisateur sélectionné
-                        if (this.activeTab === 'dm' && this.otherUserId) {
-                            this.loadingMessages = true;
-                            this.socket.send(JSON.stringify({
-                                type: "dm_history",
-                                with: this.otherUserId,
-                                limit: 50
-                            }));
-                            
-                            setTimeout(() => {
-                                if (this.loadingMessages) {
-                                    this.loadingMessages = false;
-                                }
-                            }, 10000);
-                        }
+                        this.showNotification('Connecté au serveur', 'success');
                     };
-                    
-                    this.socket.onclose = (event) => {
+
+                    this.socket.onclose = () => {
+                        console.log('WebSocket déconnecté');
                         this.isConnected = false;
+                        this.showNotification('Déconnecté du serveur', 'error');
                         
-                        if (event.code !== 1000) {
-                            setTimeout(() => {
-                                if ((this.activeTab === 'rooms') || (this.activeTab === 'dm' && this.otherUserId)) {
-                                    this.connectWebSocket();
-                                }
-                            }, 5000);
-                        }
+                        // Tentative de reconnexion après 5 secondes
+                        setTimeout(() => {
+                            if (!this.isConnected) {
+                                this.connectWebSocket();
+                            }
+                        }, 5000);
                     };
-                    
+
                     this.socket.onerror = (error) => {
-                        this.showNotification('Erreur de connexion', 'error');
+                        console.error('Erreur WebSocket:', error);
+                        this.isConnected = false;
                     };
-                    
+
                     this.socket.onmessage = (event) => {
-                        this.handleWebSocketMessage(JSON.parse(event.data));
+                        try {
+                            const data = JSON.parse(event.data);
+                            this.handleWebSocketMessage(data);
+                        } catch (error) {
+                            console.error('Erreur lors du traitement du message:', error);
+                        }
                     };
                 } catch (error) {
-                    this.showNotification('Impossible de se connecter au serveur', 'error');
+                    console.error('Erreur lors de la connexion WebSocket:', error);
                 }
             },
 

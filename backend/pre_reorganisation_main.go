@@ -8,8 +8,14 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/mux"
-	"veza-backend/db"
-	"veza-backend/routes"
+	"github.com/okinrev/veza-web-app/internal/api/admin/routes"
+	"github.com/okinrev/veza-web-app/internal/api/auth/routes"
+	"github.com/okinrev/veza-web-app/internal/api/file/routes"
+	"github.com/okinrev/veza-web-app/internal/api/message/routes"
+	"github.com/okinrev/veza-web-app/internal/api/ressource/routes"
+	"github.com/okinrev/veza-web-app/internal/api/room/routes"
+	"github.com/okinrev/veza-web-app/internal/api/track/routes"
+	"github.com/okinrev/veza-web-app/internal/api/user/routes"
 )
 
 func main() {
@@ -19,7 +25,6 @@ func main() {
 	r.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join("../frontend", "favicon.ico"))
 	})
-	
 
 	routes.RegisterAuthRoutes(r)
 
@@ -37,7 +42,7 @@ func main() {
 
 	routes.RegisterUserRoutes(r)
 
-	routes.RegisterTrackRoutes(r)	
+	routes.RegisterTrackRoutes(r)
 
 	routes.RegisterSharedRoutes(r)
 
@@ -52,7 +57,6 @@ func main() {
 	routes.RegisterOfferRoutes(r)
 
 	routes.RegisterAdminRoutes(r)
-
 
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("../frontend")))
 

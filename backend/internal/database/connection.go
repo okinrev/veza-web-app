@@ -20,13 +20,17 @@ type DB struct {
 
 // NewConnection creates a new database connection
 func NewConnection(databaseURL string) (*DB, error) {
+	log.Printf("🔌 Tentative de connexion à la base de données avec l'URL: %s", databaseURL)
+
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
+		log.Printf("❌ Erreur lors de l'ouverture de la connexion: %v", err)
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
 	// Test the connection
 	if err := db.Ping(); err != nil {
+		log.Printf("❌ Erreur lors du ping de la base de données: %v", err)
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
@@ -34,7 +38,7 @@ func NewConnection(databaseURL string) (*DB, error) {
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(25)
 
-	log.Println("✅ Database connection established")
+	log.Println("✅ Connexion à la base de données établie avec succès")
 	return &DB{DB: db}, nil
 }
 
@@ -76,7 +80,7 @@ func RunMigrations(db *DB) error {
 	for _, file := range migrationFiles {
 		if _, applied := appliedMigrations[file]; !applied {
 			log.Printf("Running migration: %s", file)
-			
+
 			if err := runMigrationFile(db, filepath.Join("./internal/database/migrations", file)); err != nil {
 				return fmt.Errorf("failed to run migration %s: %w", file, err)
 			}

@@ -1,0 +1,12 @@
+@use "variables" as vars;
+@use "main";
+@use "components";
+@use "utilities";
+@use "animations";
+@use "themes";
+
+// Import des styles spécifiques aux pages
+@use "../pages/auth/login/style" as login;
+@use "../pages/auth/register/style" as register;
+@use "../pages/auth/forgot-password/style" as forgot-password;
+@use "../pages/auth/reset-password/style" as reset-password; 

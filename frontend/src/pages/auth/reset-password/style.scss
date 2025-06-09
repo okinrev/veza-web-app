@@ -1,0 +1,83 @@
+@use "sass:color";
+@use "../../../styles/variables" as vars;
+
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: vars.$spacing-8;
+    background-color: vars.$color-light;
+}
+
+.auth-card {
+    background-color: vars.$color-white;
+    border-radius: vars.$border-radius-lg;
+    box-shadow: vars.$shadow;
+    padding: vars.$spacing-8;
+    width: 100%;
+    max-width: 400px;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: vars.$spacing-8;
+
+    h1 {
+        color: vars.$color-dark;
+        margin-bottom: vars.$spacing-2;
+    }
+
+    p {
+        color: vars.$color-secondary;
+    }
+}
+
+.auth-form {
+    .form-group {
+        margin-bottom: vars.$spacing-6;
+
+        label {
+            display: block;
+            margin-bottom: vars.$spacing-2;
+            color: vars.$color-dark;
+            font-weight: vars.$font-weight-medium;
+        }
+
+        input {
+            width: 100%;
+            padding: vars.$spacing-3;
+            border: vars.$border-width-1 vars.$border-style-solid vars.$color-secondary;
+            border-radius: vars.$border-radius;
+            transition: vars.$transition-colors;
+
+            &:focus {
+                outline: none;
+                border-color: vars.$color-primary;
+            }
+        }
+    }
+
+    .btn-block {
+        width: 100%;
+        padding: vars.$spacing-3;
+        font-size: vars.$font-size-base;
+    }
+}
+
+.auth-links {
+    margin-top: vars.$spacing-6;
+    text-align: center;
+
+    a {
+        display: block;
+        color: vars.$color-primary;
+        text-decoration: none;
+        margin-bottom: vars.$spacing-2;
+        transition: vars.$transition-colors;
+
+        &:hover {
+            color: color.adjust(vars.$color-primary, $lightness: -10%);
+        }
+    }
+} 

@@ -1,0 +1,86 @@
+@import "@/styles/variables.scss";
+
+.notification-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: $z-index-50;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.notification {
+    padding: $spacing-4;
+    border-radius: $border-radius;
+    background-color: $color-white;
+    box-shadow: $shadow-lg;
+    min-width: 300px;
+    max-width: 400px;
+    transform: translateX(120%);
+    transition: transform 0.3s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    &.show {
+        transform: translateX(0);
+    }
+
+    &.notification-success {
+        border-left: 4px solid $color-success;
+    }
+
+    &.notification-error {
+        border-left: 4px solid $color-danger;
+    }
+
+    &.notification-warning {
+        border-left: 4px solid $color-warning;
+    }
+
+    &.notification-info {
+        border-left: 4px solid $color-info;
+    }
+}
+
+.notification-message {
+    flex: 1;
+    color: $dark-color;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: $secondary-color;
+    cursor: pointer;
+    font-size: 1.5rem;
+    padding: 0;
+    line-height: 1;
+
+    &:hover {
+        color: $dark-color;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+} 
