@@ -23,6 +23,7 @@ go.work.sum
 
 # env file
 .env
+.env.*
 target/
 *.zip
 tree.txt
@@ -32,3 +33,8 @@ node_modules/
 .parcel-cache/
 dist/
 .DS_Store
+versions_details/
+tests/
+static/
+go.sum
+Cargo.lock
