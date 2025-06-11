@@ -1,4 +1,4 @@
-<!-- file: frontend/shared_ressources.html -->
+<!-- file: frontend/shared_ressources -->
 
 <!DOCTYPE html>
 <html lang="fr">
@@ -526,6 +526,8 @@
   </div>
 
   <script>
+    // file: frontend/js/shared_resources.js
+
     function sharedResourcesApp() {
         return {
             // État principal
@@ -633,7 +635,7 @@
             async checkAuth() {
                 const token = localStorage.getItem('access_token');
                 if (!token) {
-                    window.location.href = '/login.html';
+                    window.location.href = '/login';
                     return;
                 }
 
@@ -642,14 +644,14 @@
                     this.username = payload.username;
                 } catch (e) {
                     this.showNotification('Erreur d\'authentification', 'error');
-                    window.location.href = '/login.html';
+                    window.location.href = '/login';
                 }
             },
 
             logout() {
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
-                window.location.href = '/login.html';
+                window.location.href = '/login';
             },
 
             // Chargement des ressources
@@ -674,7 +676,7 @@
             // Chargement des tags populaires
             async loadPopularTags() {
                 try {
-                    const response = await fetch('/tags');
+                    const response = await fetch('/api/v1/tags');
                     if (response.ok) {
                         const tags = await response.json();
                         this.popularTags = tags.slice(0, 10);

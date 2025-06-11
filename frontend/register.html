@@ -180,11 +180,11 @@
             <div class="ml-3 text-sm">
               <label for="terms" class="text-gray-700">
                 J'accepte les 
-                <a href="/terms.html" class="text-blue-600 hover:text-blue-700 hover:underline" target="_blank">
+                <a href="/terms" class="text-blue-600 hover:text-blue-700 hover:underline" target="_blank">
                   conditions d'utilisation
                 </a> 
                 et la 
-                <a href="/privacy.html" class="text-blue-600 hover:text-blue-700 hover:underline" target="_blank">
+                <a href="/privacy" class="text-blue-600 hover:text-blue-700 hover:underline" target="_blank">
                   politique de confidentialité
                 </a>
               </label>
@@ -218,13 +218,13 @@
           <p class="text-center text-green-600 font-medium">✅ Compte créé avec succès !</p>
           <div class="grid grid-cols-2 gap-3">
             <button 
-              @click="goToPage('/shared_ressources.html')"
+              @click="goToPage('/shared_ressources')"
               class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
             >
               📁 Ressources
             </button>
             <button 
-              @click="goToPage('/chat.html')"
+              @click="goToPage('/chat')"
               class="bg-purple-100 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium"
             >
               💬 Chat
@@ -237,12 +237,12 @@
       <div class="text-center space-y-2">
         <p class="text-sm text-gray-600">
           Vous avez déjà un compte ?
-          <a href="/login.html" class="text-blue-600 hover:text-blue-700 font-medium hover:underline">
+          <a href="/login" class="text-blue-600 hover:text-blue-700 font-medium hover:underline">
             Se connecter
           </a>
         </p>
         <p class="text-sm text-gray-600">
-          <a href="/help.html" class="text-gray-500 hover:text-gray-700 hover:underline">
+          <a href="/help" class="text-gray-500 hover:text-gray-700 hover:underline">
             Besoin d'aide ?
           </a>
         </p>
@@ -304,7 +304,7 @@
                         const payload = JSON.parse(atob(token.split('.')[1]));
                         if (!payload.exp || payload.exp > Date.now() / 1000) {
                             // Token valide, rediriger
-                            window.location.href = '/shared_ressources.html';
+                            window.location.href = '/shared_ressources';
                             return;
                         }
                     } catch (e) {
@@ -437,7 +437,7 @@
                 this.message = { text: '', type: 'error' };
 
                 try {
-                    const response = await fetch('/signup', {
+                    const response = await fetch('/api/v1/auth/signup', {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json' 
@@ -466,7 +466,7 @@
 
                         // Redirection automatique après 3 secondes
                         setTimeout(() => {
-                            this.goToPage('/shared_ressources.html');
+                            this.goToPage('/shared_ressources');
                         }, 3000);
 
                     } else {

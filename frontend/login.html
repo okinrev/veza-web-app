@@ -79,25 +79,25 @@
           <p class="text-center text-green-600 font-medium">✅ Connexion réussie !</p>
           <div class="grid grid-cols-2 gap-3">
             <button 
-              @click="goToPage('/shared_ressources.html')"
+              @click="goToPage('/shared_ressources')"
               class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
             >
               📁 Ressources
             </button>
             <button 
-              @click="goToPage('/room.html')"
+              @click="goToPage('/room')"
               class="bg-purple-100 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium"
             >
               💬 Salons
             </button>
             <button 
-              @click="goToPage('/upload.html')"
+              @click="goToPage('/upload')"
               class="bg-green-100 text-green-700 px-4 py-2 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
             >
               🎵 Upload
             </button>
             <button 
-              @click="goToPage('/dm.html?user_id=1')"
+              @click="goToPage('/dm?user_id=1')"
               class="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg hover:bg-orange-200 transition-colors text-sm font-medium"
             >
               📩 Messages
@@ -110,12 +110,12 @@
       <div class="text-center space-y-2">
         <p class="text-sm text-gray-600">
           Pas encore de compte ?
-          <a href="/register.html" class="text-blue-600 hover:text-blue-700 font-medium hover:underline">
+          <a href="/register" class="text-blue-600 hover:text-blue-700 font-medium hover:underline">
             Créer un compte
           </a>
         </p>
         <p class="text-sm text-gray-600">
-          <a href="/forgot-password.html" class="text-gray-500 hover:text-gray-700 hover:underline">
+          <a href="/forgot-password" class="text-gray-500 hover:text-gray-700 hover:underline">
             Mot de passe oublié ?
           </a>
         </p>
@@ -199,7 +199,7 @@
                 this.message = '';
 
                 try {
-                    const response = await fetch('/login', {
+                    const response = await fetch('/api/v1/auth/login', {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json' 
@@ -234,7 +234,7 @@
 
                         // Redirection automatique après 2 secondes vers les ressources
                         setTimeout(() => {
-                            this.goToPage('/shared_ressources.html');
+                            this.goToPage('/shared_ressources');
                         }, 2000);
 
                     } else {

@@ -368,7 +368,7 @@
                 if (!token) {
                     console.error('Token manquant');
                     this.showNotification('Veuillez vous connecter', 'error');
-                    setTimeout(() => window.location.href = '/login.html', 1000);
+                    setTimeout(() => window.location.href = '/login', 1000);
                     return false;
                 }
 
@@ -382,7 +382,7 @@
                         console.error('Token expiré');
                         this.showNotification('Session expirée, reconnexion nécessaire', 'error');
                         localStorage.removeItem('access_token');
-                        setTimeout(() => window.location.href = '/login.html', 1000);
+                        setTimeout(() => window.location.href = '/login', 1000);
                         return false;
                     }
                     
@@ -403,7 +403,7 @@
                     console.error('Erreur décodage token:', e);
                     this.showNotification('Token invalide', 'error');
                     localStorage.removeItem('access_token');
-                    setTimeout(() => window.location.href = '/login.html', 1000);
+                    setTimeout(() => window.location.href = '/login', 1000);
                     return false;
                 }
             },
@@ -532,7 +532,7 @@
                 }
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
-                window.location.href = '/login.html';
+                window.location.href = '/login';
             },
 
             goBack() {

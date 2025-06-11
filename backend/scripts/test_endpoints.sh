@@ -52,13 +52,13 @@ echo "Testing Authentication Endpoints..."
 
 # 1.1 Inscription
 test_endpoint "POST" "/auth/register" \
-    '{"username":"filou","email":"filou@example.com","password":"testpass123"}' \
+    '{"username":"koubou","email":"koubou@example.com","password":"testpass123"}' \
     "Register new user"
 
 # 1.2 Connexion
 login_response=$(curl -s -X POST \
     -H "Content-Type: application/json" \
-    -d '{"email":"filou@example.com","password":"testpass123"}' \
+    -d '{"email":"koubou@example.com","password":"testpass123"}' \
     "$API_URL/auth/login")
 
 echo "Login response: $login_response"

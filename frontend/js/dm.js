@@ -1,66 +1,78 @@
+function logout() {
+  localStorage.removeItem("access_token");
+  window.location.href = "/login";
+}
+
 document.addEventListener('alpine:init', () => {
   Alpine.store('dmChat', {
+    users: [],
+    selectedUser: null,
     myUserId: null,
-    otherUserId: parseInt(new URLSearchParams(window.location.search).get("user_id")),
     messages: [],
     contenu: '',
     socket: null,
     logEl: null,
 
     async init() {
-      const token = localStorage.getItem('access_token');
-      if (!token || isNaN(this.otherUserId)) return alert("Non connecté");
+      const token = localStorage.getItem("access_token");
+      if (!token) return window.location.href = "/login";
 
-      const me = await fetch("/me", { headers: { Authorization: "Bearer " + token } });
-      const user = await me.json();
-      this.myUserId = user.id;
+      const me = await fetch("/me", {
+        headers: { Authorization: "Bearer " + token }
+      });
+      this.myUserId = (await me.json()).id;
 
-      // Close socket proprement
-      if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
-        this.socket.close();
-        this.socket = null;
-      }
+      const res = await fetch("/users/except-me", {
+        headers: { Authorization: "Bearer " + token }
+      });
+      this.users = await res.json();
 
-      const socket = new WebSocket(`ws://localhost:9001/?token=${token}`);
-      this.socket = socket;
-
-      socket.onmessage = (event) => {
+      this.socket = new WebSocket(`ws://localhost:9001/?token=${token}`);
+      this.socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
-        if (data.type === "dm" && (data.data?.fromUser === this.otherUserId || data.data?.to === this.otherUserId)) {
+        if (data.type === "dm" &&
+          this.selectedUser &&
+          (data.data.fromUser === this.selectedUser.id || data.data.to === this.selectedUser.id)) {
           this.messages.push(data.data);
           this.scrollToBottom();
-        } else if (Array.isArray(data)) {
-          this.messages = data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        } else if (data.type === "dm_history") {
+          this.messages = data.data
+            .filter(msg => msg.content)
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
           this.scrollToBottom();
         }
       };
+    },
 
-      socket.onopen = () => {
-        socket.send(JSON.stringify({
+    selectUser(user) {
+      this.selectedUser = user;
+      this.messages = [];
+      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        this.socket.send(JSON.stringify({
           type: "dm_history",
-          with: this.otherUserId,
+          with: user.id,
           limit: 50
         }));
-      };
+      }
     },
 
     envoyerMessage() {
-      const msg = this.contenu.trim();
-      if (!msg || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+      const content = this.contenu.trim();
+      if (!content || !this.selectedUser || this.socket.readyState !== WebSocket.OPEN) return;
 
       this.socket.send(JSON.stringify({
         type: "dm",
-        to: this.otherUserId,
-        content: msg
+        to: this.selectedUser.id,
+        content
       }));
 
       this.messages.push({
         fromUser: this.myUserId,
-        to: this.otherUserId,
-        content: msg,
+        to: this.selectedUser.id,
+        content,
         timestamp: new Date().toISOString(),
-        username: 'Moi'
+        username: "Moi"
       });
 
       this.scrollToBottom();
@@ -69,8 +81,9 @@ document.addEventListener('alpine:init', () => {
 
     scrollToBottom() {
       setTimeout(() => {
-        const el = document.querySelector('[x-ref="log"]');
-        if (el) el.scrollTop = el.scrollHeight;
+        if (this.logEl) {
+          this.logEl.scrollTop = this.logEl.scrollHeight;
+        }
       }, 0);
     }
   });
@@ -79,4 +92,6 @@ document.addEventListener('alpine:init', () => {
     const el = document.querySelector('[x-ref="log"]');
     if (el) Alpine.store('dmChat').logEl = el;
   });
+
+  Alpine.store('dmChat').init();
 });
