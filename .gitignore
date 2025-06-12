@@ -38,3 +38,4 @@ tests/
 static/
 go.sum
 Cargo.lock
+.cursor*
