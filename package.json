@@ -1,0 +1,37 @@
+{
+  "devDependencies": {
+    "@playwright/test": "^1.53.0",
+    "@shadcn/ui": "^0.0.4",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^24.0.1",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "class-variance-authority": "^0.7.1",
+    "eslint": "^9.29.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "husky": "^9.1.7",
+    "jsdom": "^26.1.0",
+    "lint-staged": "^16.1.0",
+    "prettier": "^3.5.3",
+    "tailwind-merge": "^3.3.1",
+    "vitest": "^3.2.3"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.1.1",
+    "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-select": "^2.2.5",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-toast": "^1.2.14",
+    "axios": "^1.10.0",
+    "framer-motion": "^12.18.1",
+    "lucide-react": "^0.515.0",
+    "react-hook-form": "^7.58.0",
+    "zod": "^3.25.64",
+    "zustand": "^5.0.5"
+  }
+}

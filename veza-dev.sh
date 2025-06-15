@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SESSION_NAME="veza-test-session"
-PROJECT_ROOT=~/Documents/TG__Talas_Group/veza-wep-app
+PROJECT_ROOT=~/Documents/veza-wep-app
 
 # Kill existing session if it exists
 tmux has-session -t $SESSION_NAME 2>/dev/null
@@ -19,6 +19,7 @@ run_with_env() {
 
 start_container_if_not_running() {
   local container_name="$1"
+  echo "[!] Start container $container_name if not running."
   if incus info "$container_name" &>/dev/null; then
     local status
     status=$(incus info "$container_name" | grep "^Status:" | awk '{print $2}')
@@ -40,23 +41,23 @@ start_container_if_not_running() {
 # Create tmux session and windows with the right commands
 
 # Main backend go
-tmux new-session -d -s $SESSION_NAME -n "main" "$(run_with_env ~/Documents/TG__Talas_Group/veza-web-app/backend 'go run cmd/server/main.go')"
+tmux new-session -d -s $SESSION_NAME -n "main" "$(run_with_env ~/Documents/veza-web-app/backend 'go run cmd/server/main.go')"
 
 # chat_server rust
-tmux new-window -t $SESSION_NAME:1 -n "chat" "$(run_with_env ~/Documents/TG__Talas_Group/veza-web-app/backend/modules/chat_server 'cargo run')"
+tmux new-window -t $SESSION_NAME:1 -n "chat" "$(run_with_env ~/Documents/veza-web-app/backend/modules/chat_server 'cargo run')"
 
 # stream_server rust
-tmux new-window -t $SESSION_NAME:2 -n "stream" "$(run_with_env ~/Documents/TG__Talas_Group/veza-web-app/backend/modules/stream_server 'cargo run')"
+tmux new-window -t $SESSION_NAME:2 -n "stream" "$(run_with_env ~/Documents/veza-web-app/backend/modules/stream_server 'cargo run')"
 
 start_container_if_not_running veza-pg-database
 
-tmux new-window -t $SESSION_NAME:3 -n "db" "$(run_with_env ~/Documents/TG__Talas_Group/veza-web-app 'incus shell veza-pg-database')"
+tmux new-window -t $SESSION_NAME:3 -n "db" "$(run_with_env ~/Documents/veza-web-app 'incus shell veza-pg-database')"
 
 # Open a new gnome-terminal and attach tmux session
 gnome-terminal -- bash -c "tmux attach -t $SESSION_NAME"
 
-echo "[+] Opening VS Code..."
-code "."
+#echo "[+] Opening VS Code..."
+#code "."
 
 echo "[+] Opening Firefox on localhost:44103..."
 firefox http://localhost:8080 &
