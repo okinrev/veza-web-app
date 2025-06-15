@@ -57,92 +57,33 @@ func main() {
 
 	// Obtenir le chemin absolu du projet
 	projectRoot := getProjectRoot()
-	frontendPath := filepath.Join(projectRoot, "frontend")
+	frontendPath := filepath.Join(projectRoot, "talas-frontend", "dist")
 
-	log.Printf("📂 Chemin du frontend: %s", frontendPath)
+	log.Printf("📂 Chemin du nouveau frontend React: %s", frontendPath)
 
 	// Configurer les routes
 	router := gin.Default()
 
-	// Middleware pour servir les fichiers statiques
+	// Middleware pour servir les fichiers statiques du build React
 	router.Static("/assets", filepath.Join(frontendPath, "assets"))
 	router.StaticFile("/favicon.ico", filepath.Join(frontendPath, "favicon.ico"))
 
-	// Routes pour les pages HTML
-	router.GET("/", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "login.html"))
-	})
-
-	router.GET("/login", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "login.html"))
-	})
-
-	router.GET("/register", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "register.html"))
-	})
-
-	router.GET("/chat", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "chat.html"))
-	})
-
-	router.GET("/track", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "track.html"))
-	})
-
-	router.GET("/dashboard", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "dashboard.html"))
-	})
-
-	router.GET("/hub", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "hub.html"))
-	})
-
-	router.GET("/search", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "search.html"))
-	})
-
-	router.GET("/listings", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "listings.html"))
-	})
-
-	router.GET("/user_products", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "user_products.html"))
-	})
-
-	router.GET("/room", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "room.html"))
-	})
-
-	router.GET("/users", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "users.html"))
-	})
-
-	router.GET("/message", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "message.html"))
-	})
-
-	router.GET("/shared_ressources", func(c *gin.Context) {
-		c.File(filepath.Join(frontendPath, "shared_ressources.html"))
-	})
-
-	// Redirection des routes sans extension vers les fichiers HTML
+	// Pour une SPA React, on sert toujours index.html pour les routes client-side
 	router.NoRoute(func(c *gin.Context) {
-		path := c.Request.URL.Path
-		log.Printf("📂 Tentative d'accès à: %s", path)
-
-		if !strings.HasSuffix(path, ".html") {
-			htmlPath := filepath.Join(frontendPath, path+".html")
-			log.Printf("🔍 Recherche du fichier: %s", htmlPath)
-
-			if _, err := os.Stat(htmlPath); err == nil {
-				log.Printf("✅ Fichier trouvé, envoi de: %s", htmlPath)
-				c.File(htmlPath)
-				return
-			} else {
-				log.Printf("❌ Fichier non trouvé: %s", htmlPath)
-			}
+		// Si c'est une requête API, renvoyer 404
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+			return
 		}
-		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		
+		// Pour toutes les autres routes, servir index.html (SPA routing)
+		indexPath := filepath.Join(frontendPath, "index.html")
+		if _, err := os.Stat(indexPath); err == nil {
+			c.File(indexPath)
+		} else {
+			// Fallback: servir depuis le dev server si en développement
+			c.JSON(http.StatusNotFound, gin.H{"error": "Frontend not built. Run 'npm run build' in talas-frontend/"})
+		}
 	})
 
 	// Initialiser le gestionnaire WebSocket
@@ -198,37 +139,31 @@ func setupRouter(cfg *config.Config) *gin.Engine {
 		})
 	})
 
-	// Servir les fichiers statiques
-	router.Static("/public", "../frontend/public")
+	// Servir les fichiers statiques du build React
+	frontendDistPath := "../talas-frontend/dist"
+	router.Static("/assets", frontendDistPath+"/assets")
+	router.StaticFile("/favicon.ico", frontendDistPath+"/favicon.ico")
 
-	// Routes principales
-	router.StaticFile("/", "../frontend/public/login.html")
-	router.StaticFile("/login", "../frontend/public/login.html")
-	router.StaticFile("/register", "../frontend/public/register.html")
-	router.StaticFile("/dashboard", "../frontend/public/dashboard.html")
-	router.StaticFile("/shared_ressources", "../frontend/public/shared_ressources.html")
-	router.StaticFile("/chat", "../frontend/public/chat.html")
-	router.StaticFile("/profile", "../frontend/public/profile.html")
-	router.StaticFile("/settings", "../frontend/public/settings.html")
-
-	// Redirection des routes sans extension vers les fichiers HTML
+	// Configuration SPA React - toutes les routes non-API servent index.html
 	router.NoRoute(func(c *gin.Context) {
-		path := c.Request.URL.Path
-		log.Printf("📂 Tentative d'accès à: %s", path)
-
-		if !strings.HasSuffix(path, ".html") {
-			htmlPath := "../frontend/public" + path + ".html"
-			log.Printf("🔍 Recherche du fichier: %s", htmlPath)
-
-			if _, err := os.Stat(htmlPath); err == nil {
-				log.Printf("✅ Fichier trouvé, envoi de: %s", htmlPath)
-				c.File(htmlPath)
-				return
-			} else {
-				log.Printf("❌ Fichier non trouvé: %s", htmlPath)
-			}
+		// Si c'est une requête API, renvoyer 404
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+			return
 		}
-		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		
+		// Pour toutes les autres routes, servir index.html (SPA routing)
+		indexPath := frontendDistPath + "/index.html"
+		if _, err := os.Stat(indexPath); err == nil {
+			c.File(indexPath)
+		} else {
+			// Message plus clair en développement
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Frontend not built", 
+				"message": "Run 'npm run build' in talas-frontend/ directory",
+				"note": "Or use 'npm run dev' for development server on port 5173",
+			})
+		}
 	})
 
 	return router

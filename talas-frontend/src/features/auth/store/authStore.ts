@@ -3,16 +3,7 @@ import { devtools, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { apiClient } from '@/shared/api/client';
 import axios from 'axios';
-import { LoginFormData, RegisterFormData } from '../schemas/authSchemas';
-import { api } from '@/shared/api';
-
-interface User {
-  id: number;
-  email: string;
-  username: string;
-  role: 'user' | 'admin' | 'moderator';
-  avatar?: string;
-}
+import type { User } from '@/shared/api/types';
 
 interface AuthState {
   user: User | null;
@@ -56,8 +47,8 @@ export const useAuthStore = create<AuthState>()(
           });
           
           try {
-            const response = await api.post('/auth/login', { email, password });
-            const { access_token, user } = response.data.data;
+            const response = await apiClient.post<{ access_token: string; user: User }>('/auth/login', { email, password });
+            const { access_token, user } = response;
             set((state) => {
               state.user = user;
               state.accessToken = access_token;
@@ -80,7 +71,7 @@ export const useAuthStore = create<AuthState>()(
           });
           
           try {
-            await api.post('/auth/register', { username, email, password });
+            await apiClient.post('/auth/register', { username, email, password });
             set((state) => {
               state.isLoading = false;
             });

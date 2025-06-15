@@ -1,13 +1,14 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Layout } from './Layout';
-import { LoginPage } from '@/features/auth/LoginPage';
-import { RegisterPage } from '@/features/auth/RegisterPage';
-import { DashboardPage } from '@/features/dashboard/DashboardPage';
-import { ChatPage } from '@/features/chat/ChatPage';
-import { ProductsPage } from '@/features/products/ProductsPage';
-import { TracksPage } from '@/features/tracks/TracksPage';
-import { ResourcesPage } from '@/features/resources/ResourcesPage';
-import { ProfilePage } from '@/features/profile/ProfilePage';
+import LoginPage from '@/features/auth/pages/LoginPage';
+import RegisterPage from '@/features/auth/pages/RegisterPage';
+import { DashboardPage } from '@/app/pages/DashboardPage';
+// Temporary placeholders for pages not yet implemented
+const ChatPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Chat - À venir</h1></div>;
+const ProductsPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Produits - À venir</h1></div>;
+const TracksPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Pistes - À venir</h1></div>;
+const ResourcesPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Ressources - À venir</h1></div>;
+const ProfilePage = () => <div className="p-8"><h1 className="text-2xl font-bold">Profil - À venir</h1></div>;
 import { ProtectedRoute } from './ProtectedRoute';
 
 export const router = createBrowserRouter([
