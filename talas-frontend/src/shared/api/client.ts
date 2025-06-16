@@ -24,37 +24,33 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Intercepteur pour les réponses (gestion erreurs)
+// Intercepteur pour les réponses (gestion erreurs basique)
 API.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
-    // Gestion des erreurs globales
+    // Gestion basique des erreurs pour l'ancien client API
     if (error.response) {
       const status = error.response.status;
       const message = (error.response.data as any)?.message || 'Erreur inconnue';
       
-      switch (status) {
-        case 401:
-          // Token expiré ou invalide
-          localStorage.removeItem('authToken');
-          window.location.href = '/login';
-          console.error('Session expirée - redirection vers login');
-          break;
-          
-        case 403:
-          console.error('Accès refusé');
-          break;
-          
-        case 404:
-          console.error('Ressource introuvable');
-          break;
-          
-        case 500:
-          console.error('Erreur serveur interne');
-          break;
-          
-        default:
-          console.error('Erreur API:', message);
+      // Laisser le nouveau client gérer les 401
+      if (status !== 401) {
+        switch (status) {
+          case 403:
+            console.error('Accès refusé');
+            break;
+            
+          case 404:
+            console.error('Ressource introuvable');
+            break;
+            
+          case 500:
+            console.error('Erreur serveur interne');
+            break;
+            
+          default:
+            console.error('Erreur API:', message);
+        }
       }
     } else if (error.request) {
       // Erreur réseau
@@ -102,14 +98,57 @@ class ApiClient {
       async (error) => {
         const originalRequest = error.config;
 
-        // Handle 401 errors
+        // Handle 401 errors (token expiré)
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
           
-          // Pour l'instant, on déconnecte simplement l'utilisateur
-          localStorage.removeItem('authToken');
-          window.location.href = '/login';
-          return Promise.reject(error);
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (refreshToken) {
+            try {
+              console.log('[API Client] Token expiré, tentative de refresh...');
+              
+              // Appeler l'endpoint de refresh du backend
+              const refreshResponse = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+                refresh_token: refreshToken
+              });
+              
+              const { access_token, expires_in } = refreshResponse.data.data;
+              
+              // Mettre à jour le token stocké
+              localStorage.setItem('authToken', access_token);
+              
+              // Mettre à jour l'header Authorization pour la requête originale
+              originalRequest.headers.Authorization = `Bearer ${access_token}`;
+              
+              console.log('[API Client] Token refreshé avec succès');
+              
+              // Notifier l'authStore du nouveau token
+              const authStore = await import('@/shared/stores/authStore');
+              authStore.useAuthStore.setState({ token: access_token });
+              
+              // Réessayer la requête originale avec le nouveau token
+              return this.client(originalRequest);
+              
+            } catch (refreshError) {
+              console.error('[API Client] Erreur lors du refresh du token:', refreshError);
+              
+              // Le refresh a échoué, déconnecter l'utilisateur
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('refreshToken');
+              
+              // Notifier l'authStore
+              const authStore = await import('@/shared/stores/authStore');
+              authStore.useAuthStore.getState().logout();
+              
+              return Promise.reject(error);
+            }
+          } else {
+            // Pas de refresh token, déconnecter
+            console.log('[API Client] Pas de refresh token, déconnexion');
+            localStorage.removeItem('authToken');
+            window.location.href = '/login';
+            return Promise.reject(error);
+          }
         }
 
         // Handle other errors

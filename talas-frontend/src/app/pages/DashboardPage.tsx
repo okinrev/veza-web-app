@@ -12,22 +12,26 @@ import {
   LogOut 
 } from 'lucide-react';
 
+// Fonction utilitaire pour extraire les valeurs sql.NullString de Go
+const extractNullString = (value: any): string => {
+  if (value && typeof value === 'object' && 'String' in value) {
+    return value.Valid ? value.String : '';
+  }
+  return value || '';
+};
+
 export function DashboardPage() {
   const { user, logout } = useAuthStore();
-
-  // Débogage temporaire
-  console.log('User data:', user);
-  console.log('User first_name type:', typeof user?.first_name);
-  console.log('User first_name value:', user?.first_name);
 
   const handleLogout = () => {
     logout();
   };
 
-  // Vérification de sécurité pour éviter le rendu d'objets
-  const safeFirstName = user?.first_name ? String(user.first_name) : 'Utilisateur';
-  const safeLastName = user?.last_name ? String(user.last_name) : '';
-  const safeEmail = user?.email ? String(user.email) : '';
+  // Extraction sécurisée des valeurs utilisateur
+  const safeFirstName = extractNullString(user?.first_name) || user?.username || 'Utilisateur';
+  const safeLastName = extractNullString(user?.last_name);
+  const safeEmail = user?.email || '';
+  const displayName = safeFirstName + (safeLastName ? ` ${safeLastName}` : '');
 
   const modules = [
     {
@@ -124,7 +128,7 @@ export function DashboardPage() {
             <div>
               <p className="text-sm text-gray-600">Nom complet</p>
               <p className="font-medium">
-                {safeFirstName} {safeLastName}
+                {displayName || safeFirstName}
               </p>
             </div>
           </div>

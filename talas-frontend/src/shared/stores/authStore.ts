@@ -31,21 +31,38 @@ export const useAuthStore = create<AuthState>()(
       login: async (credentials) => {
         set({ isLoading: true });
         try {
-          const response = await API.post<ApiResponse<{ user: User; token: string }>>(
+          const response = await API.post<ApiResponse<{ 
+            user: User; 
+            access_token: string; 
+            refresh_token: string;
+            expires_in: number;
+          }>>(
             ENDPOINTS.LOGIN,
             credentials
           );
           
-          const { user, token } = response.data.data;
+          console.log('Réponse login complète:', response);
+          console.log('Données de réponse:', response.data);
           
-          localStorage.setItem('authToken', token);
+          const { user, access_token, refresh_token } = response.data.data;
+          
+          console.log('Access token reçu:', access_token ? 'Présent' : 'Manquant');
+          console.log('Refresh token reçu:', refresh_token ? 'Présent' : 'Manquant');
+          console.log('User reçu:', user);
+          
+          // Stocker l'access token comme token principal
+          localStorage.setItem('authToken', access_token);
+          localStorage.setItem('refreshToken', refresh_token);
           set({
             user,
-            token,
+            token: access_token,
             isAuthenticated: true,
             isLoading: false,
           });
+          
+          console.log('État authStore après login:', { user, token: access_token, isAuthenticated: true });
         } catch (error) {
+          console.error('Erreur login authStore:', error);
           set({ isLoading: false });
           throw error;
         }
@@ -54,17 +71,23 @@ export const useAuthStore = create<AuthState>()(
       register: async (data) => {
         set({ isLoading: true });
         try {
-          const response = await API.post<ApiResponse<{ user: User; token: string }>>(
+          const response = await API.post<ApiResponse<{ 
+            user: User; 
+            access_token: string; 
+            refresh_token: string;
+            expires_in: number;
+          }>>(
             ENDPOINTS.REGISTER,
             data
           );
           
-          const { user, token } = response.data.data;
+          const { user, access_token, refresh_token } = response.data.data;
           
-          localStorage.setItem('authToken', token);
+          localStorage.setItem('authToken', access_token);
+          localStorage.setItem('refreshToken', refresh_token);
           set({
             user,
-            token,
+            token: access_token,
             isAuthenticated: true,
             isLoading: false,
           });
@@ -75,7 +98,9 @@ export const useAuthStore = create<AuthState>()(
       },
       
       logout: () => {
+        console.log('[AuthStore] Déconnexion - nettoyage des tokens');
         localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
         set({
           user: null,
           token: null,
@@ -85,12 +110,32 @@ export const useAuthStore = create<AuthState>()(
       
       refreshToken: async () => {
         try {
-          const response = await API.post<ApiResponse<{ token: string }>>(ENDPOINTS.REFRESH);
-          const { token } = response.data.data;
+          console.log('[AuthStore] Tentative de refresh du token...');
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (!refreshToken) {
+            throw new Error('No refresh token found');
+          }
+
+          const response = await API.post<ApiResponse<{ 
+            access_token: string; 
+            refresh_token?: string;
+            expires_in: number 
+          }>>(ENDPOINTS.REFRESH, {
+            refresh_token: refreshToken,
+          });
           
-          localStorage.setItem('authToken', token);
-          set({ token });
+          const { access_token, refresh_token: newRefreshToken, expires_in } = response.data.data;
+          
+          // Mettre à jour les tokens dans localStorage
+          localStorage.setItem('authToken', access_token);
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
+          
+          console.log('[AuthStore] Token refreshé avec succès');
+          set({ token: access_token });
         } catch (error) {
+          console.error('[AuthStore] Erreur lors du refresh du token:', error);
           get().logout();
           throw error;
         }

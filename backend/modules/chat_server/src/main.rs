@@ -173,44 +173,60 @@ async fn handle_connection(
     while let Some(result) = ws_read.next().await {
         match result {
             Ok(msg) if msg.is_text() => {
-                if let Ok(parsed) = serde_json::from_str::<WsInbound>(msg.to_text().unwrap()) {
+                let msg_text = msg.to_text().unwrap();
+                tracing::info!(user_id = user_id, message = %msg_text, "📨 Message reçu du client");
+                
+                if let Ok(parsed) = serde_json::from_str::<WsInbound>(msg_text) {
+                    tracing::info!(user_id = user_id, message_type = ?parsed, "🔍 Message parsé avec succès");
                     match parsed {
                         WsInbound::Join { room } => {
+                            tracing::info!(user_id = user_id, room = %room, "🚪 Tentative de rejoindre salon");
                             if room_exists(&hub, &room).await {
                                 join_room(&hub, &room, user_id).await;
+                                tracing::info!(user_id = user_id, room = %room, "✅ Salon rejoint avec succès");
                                 let _ = tx.send(make_json_message("join_ack", json!({
                                     "room": room,
                                     "status": "ok"
                                 })));                                
                             } else {
+                                tracing::warn!(user_id = user_id, room = %room, "❌ Salon inexistant");
                                 let _ = tx.send(make_json_message("error", json!({"message": "Room inexistante."})));
                             }
                         }
                         WsInbound::Message { room, content } => {
+                            tracing::info!(user_id = user_id, room = %room, content = %content, "💬 Message salon reçu"); 
                             if room_exists(&hub, &room).await {
                                 broadcast_to_room(&hub, user_id, &username, &room, &content).await;
+                                tracing::info!(user_id = user_id, room = %room, "✅ Message salon diffusé");
                                 let _ = tx.send(make_json_message("message_sent", json!({
                                     "room": room,
                                     "status": "ok"
                                 })));                                
                             } else {
+                                tracing::warn!(user_id = user_id, room = %room, "❌ Salon inexistant pour message");
                                 let _ = tx.send(make_json_message("error", json!({"message": "Impossible d'envoyer un message à une room inexistante."})));
                             }
                         }
                         WsInbound::DirectMessage { to, content } => {
+                            tracing::info!(user_id = user_id, to = to, content = %content, "📨 Message privé reçu");
                             if user_exists(&hub, to).await {
                                 send_dm(&hub, user_id, to, &username, &content).await;
+                                tracing::info!(user_id = user_id, to = to, "✅ Message privé envoyé");
                                 let _ = tx.send(make_json_message("dm_sent", json!({
                                     "to": to,
                                     "status": "ok"
                                 })));                                                                
                             } else {
+                                tracing::warn!(user_id = user_id, to = to, "❌ Utilisateur destinataire introuvable");
                                 let _ = tx.send(make_json_message("error", json!({"message": "Utilisateur destinataire introuvable."})));
                             }
                         }
                         WsInbound::RoomHistory { room, limit } => {
+                            let actual_limit = limit.unwrap_or(50);
+                            tracing::info!(user_id = user_id, room = %room, limit = actual_limit, "📜 Demande historique salon");
                             if room_exists(&hub, &room).await {
-                                let msgs = fetch_room_history(&hub, &room, limit.unwrap_or(50)).await;
+                                let msgs = fetch_room_history(&hub, &room, actual_limit).await;
+                                tracing::info!(user_id = user_id, room = %room, count = msgs.len(), "📜 Historique salon récupéré");
                                 for message in msgs {
                                     let payload = json!({
                                         "id": message.id,
@@ -221,12 +237,16 @@ async fn handle_connection(
                                     let _ = tx.send(Message::Text(payload.to_string()));
                                 }                                
                             } else {
+                                tracing::warn!(user_id = user_id, room = %room, "❌ Salon inconnu pour historique");
                                 let _ = tx.send(make_json_message("error", json!({"message": "Room inconnue."})));
                             }
                         }
                         WsInbound::DmHistory { with, limit } => {
+                            let actual_limit = limit.unwrap_or(50);
+                            tracing::info!(user_id = user_id, with = with, limit = actual_limit, "📜 Demande historique DM");
                             if user_exists(&hub, with).await {
-                                let msgs = fetch_dm_history(&hub, user_id, with, limit.unwrap_or(50)).await;
+                                let msgs = fetch_dm_history(&hub, user_id, with, actual_limit).await;
+                                tracing::info!(user_id = user_id, with = with, count = msgs.len(), "📜 Historique DM récupéré");
                                 let payload: Vec<_> = msgs.into_iter().map(|message| {
                                     json!({
                                         "username": message.username,
@@ -238,6 +258,7 @@ async fn handle_connection(
                                 
                                 let _ = tx.send(make_json_message("dm_history", payload));                                                                
                             } else {
+                                tracing::warn!(user_id = user_id, with = with, "❌ Utilisateur introuvable pour historique DM");
                                 let _ = tx.send(make_json_message("error", json!({"message": "Utilisateur introuvable pour DM."})));
                             }
                         }

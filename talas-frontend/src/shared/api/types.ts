@@ -15,11 +15,15 @@ export interface PaginatedResponse<T> {
 
 export interface User {
   id: number;
-  first_name: string;
-  last_name: string;
+  username?: string;
+  first_name: any; // sql.NullString from Go backend
+  last_name: any;  // sql.NullString from Go backend
   email: string;
   role?: string;
-  avatar?: string;
+  avatar?: any;    // sql.NullString from Go backend
+  bio?: any;       // sql.NullString from Go backend
+  is_active?: boolean;
+  is_verified?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
